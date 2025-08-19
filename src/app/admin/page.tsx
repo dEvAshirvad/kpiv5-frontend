@@ -20,19 +20,12 @@ import {
 	Download,
 	Eye,
 	Search,
-	Filter,
 	TrendingUp,
 	BarChart3,
 	X,
 	Users,
 	Award,
-	Target,
-	CheckCircle,
-	AlertCircle,
-	Clock,
 	Building,
-	UserCheck,
-	UserX,
 	AlertTriangle,
 } from "lucide-react";
 import {
@@ -47,8 +40,8 @@ import { useSignOut } from "@/queries/auth";
 import {
 	useStatistics,
 	calculateScoreDistribution,
-	getTopPerformers,
 	StatisticsFilters,
+	RankingEntry,
 } from "@/queries/statistics";
 
 export default function AdminPage() {
@@ -57,12 +50,13 @@ export default function AdminPage() {
 	const [departmentFilter, setDepartmentFilter] = React.useState("all");
 	const [roleFilter, setRoleFilter] = React.useState("all");
 	const [statusFilter, setStatusFilter] = React.useState("all");
-	const [selectedMember, setSelectedMember] = React.useState<any>(null);
+	const [selectedMember, setSelectedMember] =
+		React.useState<RankingEntry | null>(null);
 	const [showDetailModal, setShowDetailModal] = React.useState(false);
 	const signOutMutation = useSignOut();
 
 	// Statistics API filters
-	const [statsFilters, setStatsFilters] = React.useState<StatisticsFilters>({});
+	const [statsFilters] = React.useState<StatisticsFilters>({});
 
 	// Fetch statistics data
 	const {
@@ -83,13 +77,13 @@ export default function AdminPage() {
 		});
 	};
 
-	const handleViewDetails = (member: any) => {
+	const handleViewDetails = (member: RankingEntry) => {
 		console.log("View details for:", member.employee.name);
 		setSelectedMember(member);
 		setShowDetailModal(true);
 	};
 
-	const handleDownloadReport = (member: any) => {
+	const handleDownloadReport = (member: RankingEntry) => {
 		console.log("Download report for:", member.employee.name);
 		const reportContent = `
 KPI Performance Report - Overall Statistics
@@ -114,7 +108,7 @@ Report Generated: ${new Date().toLocaleString()}
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement("a");
 		a.href = url;
-		a.download = `kpi-report-${member.name}.txt`;
+		a.download = `kpi-report-${member.employee.name}.txt`;
 		document.body.appendChild(a);
 		a.click();
 		document.body.removeChild(a);
@@ -191,15 +185,26 @@ Report Generated: ${new Date().toLocaleString()}
 
 	// Department statistics from API data
 	const departmentStats =
-		statsData?.statistics?.departmentStats?.reduce((acc, dept) => {
-			acc[dept.department] = {
-				totalMembers: dept.totalEntries,
-				membersWithEntries: dept.totalEntries,
-				averageScore: dept.averageScore,
-				highestScore: dept.topScore,
-			};
-			return acc;
-		}, {} as Record<string, any>) || {};
+		statsData?.statistics?.departmentStats?.reduce(
+			(acc, dept) => {
+				acc[dept.department] = {
+					totalMembers: dept.totalEntries,
+					membersWithEntries: dept.totalEntries,
+					averageScore: dept.averageScore,
+					highestScore: dept.topScore,
+				};
+				return acc;
+			},
+			{} as Record<
+				string,
+				{
+					totalMembers: number;
+					membersWithEntries: number;
+					averageScore: number;
+					highestScore: number;
+				}
+			>
+		) || {};
 
 	return (
 		<div className="min-h-screen bg-gradient-to-b from-slate-50 to-blue-50">

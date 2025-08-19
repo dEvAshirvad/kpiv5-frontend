@@ -165,7 +165,7 @@ export default function TemplateManagementPage() {
 
 		for (let i = 0; i < kpiCount; i++) {
 			const kpiType = formData.get(`kpi_${i}_type`) as string;
-			let subKpis: SubKpi[] = [];
+			const subKpis: SubKpi[] = [];
 
 			if (kpiType === "subkpis") {
 				const subKpiCount = subKpiCounts[i] || 2;
@@ -259,7 +259,7 @@ export default function TemplateManagementPage() {
 
 		for (let i = 0; i < editKpiCount; i++) {
 			const kpiType = formData.get(`edit_kpi_${i}_type`) as string;
-			let subKpis: SubKpi[] = [];
+			const subKpis: SubKpi[] = [];
 
 			if (kpiType === "subkpis") {
 				const subKpiCount = editSubKpiCounts[i] || 2;
@@ -482,7 +482,7 @@ export default function TemplateManagementPage() {
 	// Initialize KPI types when edit modal opens
 	React.useEffect(() => {
 		if (showEditTemplate && selectedTemplate) {
-			selectedTemplate.template?.forEach((kpi: any, index: number) => {
+			selectedTemplate.template?.forEach((kpi: KpiTemplate, index: number) => {
 				const hasSubKpis = kpi.subKpis && kpi.subKpis.length > 0;
 				toggleSubKpiVisibility(index, hasSubKpis ? "subkpis" : "direct", true);
 			});
@@ -499,7 +499,7 @@ export default function TemplateManagementPage() {
 			}
 			setKpiTypes(newKpiTypes);
 		}
-	}, [showCreateTemplate, kpiCount]);
+	}, [showCreateTemplate, kpiCount, kpiTypes]);
 
 	const removeEditKpi = (index: number) => {
 		if (editKpiCount > 1) {
