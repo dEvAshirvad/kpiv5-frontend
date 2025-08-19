@@ -1,0 +1,248 @@
+
+				{/* 
+                Existing Entries 
+				<div className="bg-white rounded-lg shadow">
+					<div className="px-6 py-4 border-b">
+						<div className="flex justify-between items-center">
+							<h2 className="text-lg font-semibold">Existing KPI Entries</h2>
+							<Button onClick={() => setCurrentStep(1)}>
+								<Plus className="w-4 h-4 mr-2" />
+								New Entry
+							</Button>
+						</div>
+					</div>
+
+					{/* Filters */}
+					<div className="px-6 py-4 border-b bg-gray-50">
+						<div className="flex space-x-4 mb-4">
+							<div className="flex-1">
+								<Input
+									placeholder="Search entries..."
+									value={searchValue}
+									onChange={(e) => setSearchValue(e.target.value)}
+								/>
+							</div>
+							<Select value={statusFilter} onValueChange={setStatusFilter}>
+								<SelectTrigger className="w-48">
+									<SelectValue placeholder="Filter by status" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="all">All Status</SelectItem>
+									<SelectItem value="initiated">Initiated</SelectItem>
+									<SelectItem value="inprogress">In Progress</SelectItem>
+									<SelectItem value="generated">Generated</SelectItem>
+								</SelectContent>
+							</Select>
+							<Button
+								variant="outline"
+								onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}>
+								Advanced Search
+							</Button>
+						</div>
+
+						{/* Advanced Search */}
+						{showAdvancedSearch && (
+							<div className="space-y-4 pt-4 border-t">
+								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+									<div>
+										<Label>Employee ID</Label>
+										<Input
+											placeholder="Enter employee ID"
+											value={searchParams.employeeId || ""}
+											onChange={(e) =>
+												setSearchParams((prev) => ({
+													...prev,
+													employeeId: e.target.value,
+												}))
+											}
+										/>
+									</div>
+									<div>
+										<Label>Template ID</Label>
+										<Input
+											placeholder="Enter template ID"
+											value={searchParams.templateId || ""}
+											onChange={(e) =>
+												setSearchParams((prev) => ({
+													...prev,
+													templateId: e.target.value,
+												}))
+											}
+										/>
+									</div>
+									<div>
+										<Label>Month</Label>
+										<Input
+											type="number"
+											min="1"
+											max="12"
+											placeholder="1-12"
+											value={searchParams.month || ""}
+											onChange={(e) =>
+												setSearchParams((prev) => ({
+													...prev,
+													month: e.target.value
+														? parseInt(e.target.value)
+														: undefined,
+												}))
+											}
+										/>
+									</div>
+									<div>
+										<Label>Year</Label>
+										<Input
+											type="number"
+											min="2000"
+											placeholder="2025"
+											value={searchParams.year || ""}
+											onChange={(e) =>
+												setSearchParams((prev) => ({
+													...prev,
+													year: e.target.value
+														? parseInt(e.target.value)
+														: undefined,
+												}))
+											}
+										/>
+									</div>
+								</div>
+
+								{/* KPI Names Search */}
+								<div>
+									<Label className="text-sm font-medium">
+										KPI Names Search
+									</Label>
+									<div className="space-y-2 mt-2">
+										{kpiNameFilters.map((kpi, index) => (
+											<div key={index} className="flex space-x-2">
+												<Input
+													placeholder="KPI Label (e.g., Task Completion Rate)"
+													value={kpi.label}
+													onChange={(e) =>
+														updateKpiNameFilter(index, "label", e.target.value)
+													}
+													className="flex-1"
+												/>
+												<Input
+													placeholder="KPI Value (optional)"
+													value={kpi.value}
+													onChange={(e) =>
+														updateKpiNameFilter(index, "value", e.target.value)
+													}
+													className="flex-1"
+												/>
+												{kpiNameFilters.length > 1 && (
+													<Button
+														variant="outline"
+														size="sm"
+														onClick={() => removeKpiNameFilter(index)}>
+														<Trash2 className="w-4 h-4" />
+													</Button>
+												)}
+											</div>
+										))}
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={addKpiNameFilter}>
+											<Plus className="w-4 h-4 mr-2" />
+											Add KPI Filter
+										</Button>
+									</div>
+								</div>
+
+								<div className="flex space-x-2">
+									<Button onClick={handleAdvancedSearch}>
+										<Search className="w-4 h-4 mr-2" />
+										Search
+									</Button>
+									<Button variant="outline" onClick={clearAdvancedSearch}>
+										Clear
+									</Button>
+								</div>
+							</div>
+						)}
+					</div>
+
+					{/* Entries Table */}
+					{entriesLoading ? (
+						<div className="flex items-center justify-center py-8">
+							<Loader2 className="w-6 h-6 animate-spin" />
+						</div>
+					) : (
+						<Table>
+							<TableHeader>
+								<TableRow>
+									<TableHead>Employee</TableHead>
+									<TableHead>Template</TableHead>
+									<TableHead>Period</TableHead>
+									<TableHead>Score</TableHead>
+									<TableHead>Status</TableHead>
+									<TableHead>Created</TableHead>
+									<TableHead>Actions</TableHead>
+								</TableRow>
+							</TableHeader>
+							<TableBody>
+								{entriesData?.docs.map((entry: any) => (
+									<TableRow key={entry._id}>
+										<TableCell>
+											<div>
+												<div className="font-medium">
+													{entry.employeeId.name}
+												</div>
+												<div className="text-sm text-gray-500">
+													{entry.employeeId.contact.phone}
+												</div>
+											</div>
+										</TableCell>
+										<TableCell>
+											<div>
+												<div className="font-medium">
+													{entry.templateId.name}
+												</div>
+												<div className="text-sm text-gray-500">
+													{entry.templateId.frequency}
+												</div>
+											</div>
+										</TableCell>
+										<TableCell>
+											{entry.month}/{entry.year}
+										</TableCell>
+										<TableCell>
+											<span className="font-medium">{entry.score || 0}</span>
+										</TableCell>
+										<TableCell>
+											<Badge className={getStatusColor(entry.status)}>
+												{entry.status}
+											</Badge>
+										</TableCell>
+										<TableCell>{formatDate(entry.createdAt)}</TableCell>
+										<TableCell>
+											<div className="flex space-x-2">
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={() => {
+														setSelectedEntry(entry);
+														setShowEditEntry(true);
+													}}>
+													<Edit className="w-4 h-4" />
+												</Button>
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={() => {
+														setSelectedEntry(entry);
+														setShowDeleteConfirm(true);
+													}}>
+													<Trash2 className="w-4 h-4" />
+												</Button>
+											</div>
+										</TableCell>
+									</TableRow>
+								))}
+							</TableBody>
+						</Table>
+					)}
+				</div>
+                */}
