@@ -83,9 +83,9 @@ function LoginPage() {
 								<div>
 									<h2 className="text-4xl font-bold mb-4">
 										Project <br />
-										<span className="text-amber-300">Shrestha</span>
+										<span className="text-amber-300">Shrestha Version 2</span>
 									</h2>
-									<p className="text-lg mb-2">KPI Portal</p>
+									<p className="text-lg mb-2">KPI Version 2 Portal</p>
 									<p className="text-sm">KPI Portal for Chhattisgarh</p>
 								</div>
 
