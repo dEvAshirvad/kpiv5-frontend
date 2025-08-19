@@ -83,15 +83,10 @@ function LoginPage() {
 								<div>
 									<h2 className="text-4xl font-bold mb-4">
 										Project <br />
-										<span className="text-amber-300">Rahat</span>
+										<span className="text-amber-300">Shrestha</span>
 									</h2>
-									<p className="text-lg mb-2">
-										RBC 6(4) Case Resolution Portal
-									</p>
-									<p className="text-sm">
-										Financial assistance for unnatural deaths in Raipur,
-										Chhattisgarh
-									</p>
+									<p className="text-lg mb-2">KPI Portal</p>
+									<p className="text-sm">KPI Portal for Chhattisgarh</p>
 								</div>
 
 								{/* Login Form */}
