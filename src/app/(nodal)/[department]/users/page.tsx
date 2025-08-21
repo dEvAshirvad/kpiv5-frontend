@@ -51,7 +51,7 @@ import {
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import {
-	useListEmployees,
+	useGetEmployeesByDepartment,
 	useCreateEmployee,
 	useUpdateEmployee,
 	useDeleteEmployee,
@@ -63,12 +63,13 @@ import { useSession, useSignOut } from "@/queries";
 
 export default function EmployeeManagementPage() {
 	const params = useParams();
+	console.log(params.department);
 	const router = useRouter();
 	const [showEditEmployee, setShowEditEmployee] = React.useState(false);
 	const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
 	const [selectedEmployee, setSelectedEmployee] = React.useState<any>(null);
 	const [searchValue, setSearchValue] = React.useState("");
-	const [departmentFilter, setDepartmentFilter] = React.useState("All");
+	const [debouncedSearchValue, setDebouncedSearchValue] = React.useState("");
 	const [currentPage, setCurrentPage] = React.useState(1);
 	const [pageSize, setPageSize] = React.useState(10);
 
@@ -77,10 +78,11 @@ export default function EmployeeManagementPage() {
 		data: employeesData,
 		isLoading,
 		error,
-	} = useListEmployees({
+	} = useGetEmployeesByDepartment({
+		department: params.department as string,
 		page: currentPage,
 		limit: pageSize,
-		search: searchValue || undefined,
+		search: debouncedSearchValue || "",
 	});
 
 	const { data: departmentsData } = useListDepartments();
@@ -200,6 +202,20 @@ export default function EmployeeManagementPage() {
 			.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
 			.join(" ");
 	};
+
+	// Debounce search value to reduce API calls
+	React.useEffect(() => {
+		const timer = setTimeout(() => {
+			setDebouncedSearchValue(searchValue);
+		}, 500); // 500ms delay
+
+		return () => clearTimeout(timer);
+	}, [searchValue]);
+
+	// Reset to first page when debounced search changes
+	React.useEffect(() => {
+		setCurrentPage(1);
+	}, [debouncedSearchValue]);
 
 	// Department and role options
 	const departmentOptions = departments.map((dept) => dept.slug);
@@ -556,29 +572,33 @@ export default function EmployeeManagementPage() {
 									value={searchValue}
 									onChange={(e) => setSearchValue(e.target.value)}
 									placeholder="Search by name..."
-									className="pl-10"
+									className="pl-10 pr-10"
 								/>
+								{searchValue !== debouncedSearchValue && (
+									<Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-slate-400" />
+								)}
 							</div>
 							<Select
-								value={departmentFilter}
-								onValueChange={setDepartmentFilter}>
+								value={pageSize.toString()}
+								onValueChange={(value) => {
+									setPageSize(parseInt(value));
+									setCurrentPage(1);
+								}}>
 								<SelectTrigger className="w-full">
-									<SelectValue placeholder="Filter by department" />
+									<SelectValue placeholder="Page size" />
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value="All">All Departments</SelectItem>
-									{departments.map((dept) => (
-										<SelectItem key={dept._id} value={dept.slug}>
-											{dept.name}
-										</SelectItem>
-									))}
+									<SelectItem value="5">5 per page</SelectItem>
+									<SelectItem value="10">10 per page</SelectItem>
+									<SelectItem value="20">20 per page</SelectItem>
+									<SelectItem value="50">50 per page</SelectItem>
 								</SelectContent>
 							</Select>
 							<Button
 								variant="outline"
 								onClick={() => {
 									setSearchValue("");
-									setDepartmentFilter("All");
+									setDebouncedSearchValue("");
 									setCurrentPage(1);
 								}}
 								className="border-slate-300 text-slate-700 hover:bg-slate-50">
@@ -704,6 +724,78 @@ export default function EmployeeManagementPage() {
 						)}
 					</CardContent>
 				</Card>
+
+				{/* Pagination Controls */}
+				{employeesData && employeesData.totalPages > 1 && (
+					<Card className="mt-6 bg-white/95 backdrop-blur-sm shadow-lg border-l-4 border-emerald-600">
+						<CardContent className="p-4">
+							<div className="flex items-center justify-between">
+								<div className="text-sm text-slate-600">
+									Showing {(currentPage - 1) * pageSize + 1} to{" "}
+									{Math.min(currentPage * pageSize, employeesData.total)} of{" "}
+									{employeesData.total} employees
+								</div>
+								<div className="flex items-center space-x-2">
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => setCurrentPage(1)}
+										disabled={currentPage === 1}>
+										First
+									</Button>
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => setCurrentPage(currentPage - 1)}
+										disabled={currentPage === 1}>
+										Previous
+									</Button>
+									<div className="flex items-center space-x-1">
+										{Array.from(
+											{ length: Math.min(5, employeesData.totalPages) },
+											(_, i) => {
+												const pageNum =
+													Math.max(
+														1,
+														Math.min(
+															employeesData.totalPages - 4,
+															currentPage - 2
+														)
+													) + i;
+												return (
+													<Button
+														key={pageNum}
+														variant={
+															currentPage === pageNum ? "default" : "outline"
+														}
+														size="sm"
+														onClick={() => setCurrentPage(pageNum)}
+														className="w-8 h-8 p-0">
+														{pageNum}
+													</Button>
+												);
+											}
+										)}
+									</div>
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => setCurrentPage(currentPage + 1)}
+										disabled={currentPage === employeesData.totalPages}>
+										Next
+									</Button>
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => setCurrentPage(employeesData.totalPages)}
+										disabled={currentPage === employeesData.totalPages}>
+										Last
+									</Button>
+								</div>
+							</div>
+						</CardContent>
+					</Card>
+				)}
 			</div>
 		</div>
 	);

@@ -131,6 +131,30 @@ const employeeApi = {
 		const response = await authApi.delete(`/v1/employees/${id}`);
 		return response.data;
 	},
+
+	getEmployeesByDepartment: async (
+		department: string,
+		page: number,
+		limit: number,
+		search: string
+	): Promise<ListEmployeesResponse> => {
+		const response = await authApi.get(
+			`/v1/employees/department/${department}?page=${page}&limit=${limit}&search=${search}`
+		);
+		return response.data;
+	},
+
+	getEmployeesByRole: async (
+		role: string,
+		page: number,
+		limit: number,
+		search: string
+	): Promise<ListEmployeesResponse> => {
+		const response = await authApi.get(
+			`/v1/employees/role/${role}?page=${page}&limit=${limit}&search=${search}`
+		);
+		return response.data;
+	},
 };
 
 // React Query hooks
@@ -174,5 +198,42 @@ export const useDeleteEmployee = () => {
 		onSuccess: (data) => {
 			console.log("Employee deleted successfully:", data);
 		},
+	});
+};
+
+export const useGetEmployeesByDepartment = ({
+	department,
+	page,
+	limit,
+	search,
+}: {
+	department: string;
+	page: number;
+	limit: number;
+	search: string;
+}) => {
+	return useQuery({
+		queryKey: ["employees", "department", department, page, limit, search],
+		queryFn: () =>
+			employeeApi.getEmployeesByDepartment(department, page, limit, search),
+		enabled: Boolean(department),
+	});
+};
+
+export const useGetEmployeesByRole = ({
+	role,
+	page,
+	limit,
+	search,
+}: {
+	role: string;
+	page: number;
+	limit: number;
+	search: string;
+}) => {
+	return useQuery({
+		queryKey: ["employees", "role", role, page, limit, search],
+		queryFn: () => employeeApi.getEmployeesByRole(role, page, limit, search),
+		enabled: Boolean(role),
 	});
 };
