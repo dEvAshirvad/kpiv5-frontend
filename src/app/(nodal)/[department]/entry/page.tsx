@@ -81,6 +81,7 @@ import {
 
 // Auth hooks
 import { useSession, useSignOut } from "@/queries";
+import { useGetEmployeesByDepartment } from "@/queries/employees";
 
 interface StepData {
 	employeeId: string;
@@ -151,14 +152,19 @@ export default function EntryPage() {
 
 	// API queries - using search API only
 	const { data: employeesData, isLoading: employeesLoading } =
-		useGetDepartmentEmployees(params.department as string);
+		useGetEmployeesByDepartment({
+			department: params.department as string,
+			page: 1,
+			limit: 10,
+			search: "",
+		});
 
 	const { data: templatesData, isLoading: templatesLoading } =
 		useGetEmployeeTemplates(stepData.employeeId);
 
 	// Filter employees based on search criteria
 	const filteredEmployees =
-		employeesData?.employees?.filter((employee: Employee) => {
+		employeesData?.docs?.filter((employee: Employee) => {
 			const nameMatch = employee.name
 				.toLowerCase()
 				.includes(employeeNameSearch.toLowerCase());
@@ -352,9 +358,8 @@ export default function EntryPage() {
 	// Get selected employee name
 	const getSelectedEmployeeName = () => {
 		return (
-			employeesData?.employees.find(
-				(emp: any) => emp._id === stepData.employeeId
-			)?.name || ""
+			employeesData?.docs.find((emp: any) => emp._id === stepData.employeeId)
+				?.name || ""
 		);
 	};
 
@@ -654,7 +659,7 @@ export default function EntryPage() {
 										<div className="flex justify-between items-center mt-4">
 											<div className="text-sm text-gray-600">
 												Showing {filteredEmployees.length} of{" "}
-												{employeesData?.employees.length || 0} employees
+												{employeesData?.docs.length || 0} employees
 											</div>
 											<Button
 												variant="outline"

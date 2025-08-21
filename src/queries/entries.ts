@@ -226,15 +226,33 @@ export interface EntrySummaryResponse {
 
 // Employee Workflow Response Types
 export interface DepartmentEmployeesResponse {
-	success: boolean;
-	message: string;
-	employees: Employee[];
+	docs: Employee[];
+	total: number;
+	page: number;
+	limit: number;
+	totalPages: number;
+	hasNextPage: boolean;
+	hasPreviousPage: boolean;
+	message?: string;
+	success?: boolean;
+	status?: number;
+	timestamp?: string;
+	cache?: boolean;
 }
 
 export interface RoleEmployeesResponse {
-	success: boolean;
-	message: string;
-	employees: Employee[];
+	docs: Employee[];
+	total: number;
+	page: number;
+	limit: number;
+	totalPages: number;
+	hasNextPage: boolean;
+	hasPreviousPage: boolean;
+	message?: string;
+	success?: boolean;
+	status?: number;
+	timestamp?: string;
+	cache?: boolean;
 }
 
 // Template Workflow Response Types
