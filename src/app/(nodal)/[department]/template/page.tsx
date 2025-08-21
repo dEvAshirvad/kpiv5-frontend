@@ -220,8 +220,6 @@ export default function TemplateManagementPage() {
 			createTemplateMutation.mutate(validatedData as CreateTemplateData, {
 				onSuccess: () => {
 					setShowCreateTemplate(false);
-					setKpiCount(1);
-					setSubKpiCounts({ 0: 2 });
 					const form = e.target as HTMLFormElement;
 					form.reset();
 				},
@@ -417,25 +415,29 @@ export default function TemplateManagementPage() {
 
 	// Helper functions for managing KPIs and sub-KPIs
 	const addKpi = () => {
+		const newKpiIndex = kpiCount;
 		setKpiCount((prev) => prev + 1);
-		setSubKpiCounts((prev) => ({ ...prev, [kpiCount]: 2 }));
-		// Initialize visibility for the new KPI after it's added
-		setTimeout(() => {
-			toggleSubKpiVisibility(kpiCount, "subkpis", false);
-		}, 100);
+		setSubKpiCounts((prev) => ({ ...prev, [newKpiIndex]: 2 }));
+		setKpiTypes((prev) => ({ ...prev, [newKpiIndex]: "subkpis" }));
 	};
 
 	const removeKpi = (index: number) => {
 		if (kpiCount > 1) {
 			setKpiCount((prev) => prev - 1);
 			const newSubKpiCounts = { ...subKpiCounts };
+			const newKpiTypes = { ...kpiTypes };
 			delete newSubKpiCounts[index];
+			delete newKpiTypes[index];
 			// Reindex the remaining KPIs
-			const reindexed: { [key: number]: number } = {};
+			const reindexedSubKpis: { [key: number]: number } = {};
+			const reindexedTypes: { [key: number]: string } = {};
 			Object.keys(newSubKpiCounts).forEach((key, newIndex) => {
-				reindexed[newIndex] = newSubKpiCounts[parseInt(key)];
+				const oldIndex = parseInt(key);
+				reindexedSubKpis[newIndex] = newSubKpiCounts[oldIndex];
+				reindexedTypes[newIndex] = newKpiTypes[oldIndex];
 			});
-			setSubKpiCounts(reindexed);
+			setSubKpiCounts(reindexedSubKpis);
+			setKpiTypes(reindexedTypes);
 		}
 	};
 
@@ -458,12 +460,10 @@ export default function TemplateManagementPage() {
 
 	// Helper functions for managing edit KPIs and sub-KPIs
 	const addEditKpi = () => {
+		const newKpiIndex = editKpiCount;
 		setEditKpiCount((prev) => prev + 1);
-		setEditSubKpiCounts((prev) => ({ ...prev, [editKpiCount]: 2 }));
-		// Initialize visibility for the new KPI after it's added
-		setTimeout(() => {
-			toggleSubKpiVisibility(editKpiCount, "subkpis", true);
-		}, 100);
+		setEditSubKpiCounts((prev) => ({ ...prev, [newKpiIndex]: 2 }));
+		setEditKpiTypes((prev) => ({ ...prev, [newKpiIndex]: "subkpis" }));
 	};
 
 	// Function to toggle sub-KPI visibility based on KPI type
@@ -482,10 +482,12 @@ export default function TemplateManagementPage() {
 	// Initialize KPI types when edit modal opens
 	React.useEffect(() => {
 		if (showEditTemplate && selectedTemplate) {
+			const newEditKpiTypes: { [key: number]: string } = {};
 			selectedTemplate.template?.forEach((kpi: KpiTemplate, index: number) => {
 				const hasSubKpis = kpi.subKpis && kpi.subKpis.length > 0;
-				toggleSubKpiVisibility(index, hasSubKpis ? "subkpis" : "direct", true);
+				newEditKpiTypes[index] = hasSubKpis ? "subkpis" : "direct";
 			});
+			setEditKpiTypes(newEditKpiTypes);
 		}
 	}, [showEditTemplate, selectedTemplate]);
 
@@ -495,23 +497,46 @@ export default function TemplateManagementPage() {
 			// Set default type for new KPIs
 			const newKpiTypes: { [key: number]: string } = {};
 			for (let i = 0; i < kpiCount; i++) {
-				newKpiTypes[i] = kpiTypes[i] || "subkpis";
+				newKpiTypes[i] = "subkpis";
 			}
 			setKpiTypes(newKpiTypes);
 		}
-	}, [showCreateTemplate, kpiCount, kpiTypes]);
+	}, [showCreateTemplate, kpiCount]);
+
+	// Reset state when modals are closed
+	React.useEffect(() => {
+		if (!showCreateTemplate) {
+			setKpiCount(1);
+			setSubKpiCounts({ 0: 2 });
+			setKpiTypes({ 0: "subkpis" });
+		}
+	}, [showCreateTemplate]);
+
+	React.useEffect(() => {
+		if (!showEditTemplate) {
+			setEditKpiCount(1);
+			setEditSubKpiCounts({ 0: 2 });
+			setEditKpiTypes({ 0: "subkpis" });
+		}
+	}, [showEditTemplate]);
 
 	const removeEditKpi = (index: number) => {
 		if (editKpiCount > 1) {
 			setEditKpiCount((prev) => prev - 1);
 			const newSubKpiCounts = { ...editSubKpiCounts };
+			const newKpiTypes = { ...editKpiTypes };
 			delete newSubKpiCounts[index];
+			delete newKpiTypes[index];
 			// Reindex the remaining KPIs
-			const reindexed: { [key: number]: number } = {};
+			const reindexedSubKpis: { [key: number]: number } = {};
+			const reindexedTypes: { [key: number]: string } = {};
 			Object.keys(newSubKpiCounts).forEach((key, newIndex) => {
-				reindexed[newIndex] = newSubKpiCounts[parseInt(key)];
+				const oldIndex = parseInt(key);
+				reindexedSubKpis[newIndex] = newSubKpiCounts[oldIndex];
+				reindexedTypes[newIndex] = newKpiTypes[oldIndex];
 			});
-			setEditSubKpiCounts(reindexed);
+			setEditSubKpiCounts(reindexedSubKpis);
+			setEditKpiTypes(reindexedTypes);
 		}
 	};
 
