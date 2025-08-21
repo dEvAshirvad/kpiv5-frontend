@@ -659,7 +659,7 @@ export default function EntryPage() {
 										<div className="flex justify-between items-center mt-4">
 											<div className="text-sm text-gray-600">
 												Showing {filteredEmployees.length} of{" "}
-												{employeesData?.docs.length || 0} employees
+												{employeesData?.docs?.length || 0} employees
 											</div>
 											<Button
 												variant="outline"
@@ -1098,7 +1098,7 @@ export default function EntryPage() {
 												{stepData.existingEntry ? "Edit Mode" : "Create Mode"}
 											</Badge>
 										</div>
-										<div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+										<div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-4">
 											<div>
 												<span className="font-medium text-gray-600">
 													Template:
@@ -1124,6 +1124,29 @@ export default function EntryPage() {
 												</p>
 											</div>
 										</div>
+										<div className="border-t pt-4">
+											<span className="font-medium text-gray-600 text-sm">
+												KPI Names:
+											</span>
+											<div className="mt-2 space-y-1">
+												{stepData.kpiNames
+													.filter((kpi) => kpi.label.trim() !== "")
+													.map((kpi, index) => (
+														<div
+															key={index}
+															className="flex items-center space-x-2">
+															<span className="text-sm text-gray-800">
+																{index + 1}. {kpi.label}
+															</span>
+															{kpi.value && (
+																<Badge variant="outline" className="text-xs">
+																	{kpi.value}
+																</Badge>
+															)}
+														</div>
+													))}
+											</div>
+										</div>
 									</div>
 									<form
 										onSubmit={(e) => {
@@ -1132,6 +1155,7 @@ export default function EntryPage() {
 												e.target as HTMLFormElement
 											);
 
+											// Generate values based on template structure (Step 6 form inputs)
 											const values: KpiValue[] = stepData.values.map(
 												(value, index) => {
 													// Check if this KPI has subKpis
