@@ -35,6 +35,7 @@ export interface Template {
 	name: string;
 	description: string;
 	role: string;
+	kpiName: string;
 	frequency: "daily" | "weekly" | "monthly" | "quarterly";
 	template?: Array<{
 		name: string;

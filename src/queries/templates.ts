@@ -13,7 +13,6 @@ export interface KpiTemplate {
 	description: string;
 	maxMarks: number;
 	kpiType: "percentage";
-	metric: string;
 	kpiUnit: "%";
 	isDynamic: boolean;
 	subKpis: SubKpi[];
@@ -27,6 +26,7 @@ export interface Template {
 	frequency: "daily" | "weekly" | "monthly" | "quarterly";
 	departmentSlug: string;
 	template: KpiTemplate[];
+	kpiName: string;
 	createdBy: string;
 	updatedBy: string;
 	createdAt: string;
@@ -66,6 +66,7 @@ export interface CreateTemplateData {
 	frequency: "daily" | "weekly" | "monthly" | "quarterly";
 	departmentSlug: string;
 	template: KpiTemplate[];
+	kpiName: string;
 	createdBy: string;
 	updatedBy: string;
 }

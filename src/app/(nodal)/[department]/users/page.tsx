@@ -78,6 +78,7 @@ export default function EmployeeManagementPage() {
 		data: employeesData,
 		isLoading,
 		error,
+		refetch,
 	} = useGetEmployeesByDepartment({
 		department: params.department as string,
 		page: currentPage,
@@ -105,7 +106,7 @@ export default function EmployeeManagementPage() {
 				email: (formData.get("email") as string) || undefined,
 				phone: formData.get("phone") as string,
 			},
-			department: formData.get("department") as string,
+			department: params.department as string,
 			departmentRole: formData.get("departmentRole") as string,
 			metadata: formData.get("metadata")
 				? JSON.parse(formData.get("metadata") as string)
@@ -117,6 +118,7 @@ export default function EmployeeManagementPage() {
 				// Close modal and reset form
 				const form = e.target as HTMLFormElement;
 				form.reset();
+				refetch();
 			},
 		});
 	};
@@ -141,7 +143,7 @@ export default function EmployeeManagementPage() {
 				email: (formData.get("email") as string) || undefined,
 				phone: formData.get("phone") as string,
 			},
-			department: formData.get("department") as string,
+			department: params.department as string,
 			departmentRole: formData.get("departmentRole") as string,
 			metadata: formData.get("metadata")
 				? JSON.parse(formData.get("metadata") as string)
@@ -154,6 +156,7 @@ export default function EmployeeManagementPage() {
 				onSuccess: () => {
 					setShowEditEmployee(false);
 					setSelectedEmployee(null);
+					refetch();
 				},
 			}
 		);
@@ -315,10 +318,11 @@ export default function EmployeeManagementPage() {
 										<Input name="name" placeholder="Enter full name" required />
 									</div>
 									<div className="space-y-2">
-										<Label htmlFor="email">Email (Optional)</Label>
+										<Label htmlFor="email">Email</Label>
 										<Input
 											name="email"
 											type="email"
+											required
 											placeholder="Enter email address"
 										/>
 									</div>
@@ -332,7 +336,10 @@ export default function EmployeeManagementPage() {
 									</div>
 									<div className="space-y-2">
 										<Label htmlFor="department">Department</Label>
-										<Select name="department" value={session?.user.department}>
+										<Select
+											name="department"
+											value={session?.user.department}
+											disabled>
 											<SelectTrigger className="w-full">
 												<SelectValue placeholder="Select department" />
 											</SelectTrigger>
@@ -346,10 +353,10 @@ export default function EmployeeManagementPage() {
 										</Select>
 									</div>
 									<div className="space-y-2">
-										<Label htmlFor="departmentRole">Role</Label>
+										<Label htmlFor="departmentRole">Post</Label>
 										<Input
 											name="departmentRole"
-											placeholder="Enter Department Role"
+											placeholder="Enter Post"
 											required
 										/>
 									</div>

@@ -50,6 +50,8 @@ import {
 	ChevronRight,
 	ChevronsLeft,
 	ChevronsRight,
+	Lock,
+	EyeOff,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -95,6 +97,19 @@ export default function NodalOfficerManagementPage() {
 	const updateNodalOfficerMutation = useUpdateNodalOfficer();
 	const removeNodalOfficerMutation = useRemoveNodalOfficer();
 	const setPasswordMutation = useSetNodalOfficerPassword();
+	const [showPassword, setShowPassword] = React.useState(false);
+
+	// Refetch nodal officers after mutations
+	const { refetch: refetchNodalOfficers } = useListNodalOfficers({
+		searchValue: searchValue || undefined,
+		searchField: searchValue ? "name" : undefined,
+		searchOperator: searchValue ? "contains" : undefined,
+		filterField: departmentFilter !== "All" ? "department" : "departmentRole",
+		filterValue: departmentFilter !== "All" ? departmentFilter : "nodalOfficer",
+		filterOperator: "eq",
+		offset: (currentPage - 1) * pageSize,
+		limit: pageSize,
+	});
 
 	const nodalOfficers = nodalOfficersData?.users || [];
 	const departments = departmentsData?.docs || [];
@@ -116,6 +131,8 @@ export default function NodalOfficerManagementPage() {
 
 		createNodalOfficerMutation.mutate(createData, {
 			onSuccess: () => {
+				// Refetch data and close modal
+				refetchNodalOfficers();
 				// Close modal and reset form
 				const form = e.target as HTMLFormElement;
 				form.reset();
@@ -142,6 +159,8 @@ export default function NodalOfficerManagementPage() {
 
 		updateNodalOfficerMutation.mutate(updateData, {
 			onSuccess: () => {
+				// Refetch data and close modal
+				refetchNodalOfficers();
 				setShowEditUser(false);
 				setSelectedUser(null);
 			},
@@ -153,6 +172,8 @@ export default function NodalOfficerManagementPage() {
 			{ userId: selectedUser.id },
 			{
 				onSuccess: () => {
+					// Refetch data and close modal
+					refetchNodalOfficers();
 					setShowDeleteConfirm(false);
 					setSelectedUser(null);
 				},
@@ -172,6 +193,8 @@ export default function NodalOfficerManagementPage() {
 			},
 			{
 				onSuccess: () => {
+					// Refetch data and close modal
+					refetchNodalOfficers();
 					setShowSetPassword(false);
 					setSelectedUser(null);
 					// Reset form
@@ -348,13 +371,27 @@ export default function NodalOfficerManagementPage() {
 									</div>
 									<div className="space-y-2">
 										<Label htmlFor="password">Password</Label>
-										<Input
-											name="password"
-											id="password"
-											type="password"
-											placeholder="Enter password"
-											required
-										/>
+										<div className="relative">
+											<Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+											<Input
+												id="password"
+												type={showPassword ? "text" : "password"}
+												name="password"
+												required
+												placeholder="Enter your password"
+												className="pl-10 pr-10"
+											/>
+											<button
+												type="button"
+												onClick={() => setShowPassword(!showPassword)}
+												className="absolute right-3 top-3 text-slate-400 hover:text-slate-600">
+												{showPassword ? (
+													<EyeOff className="h-4 w-4" />
+												) : (
+													<Eye className="h-4 w-4" />
+												)}
+											</button>
+										</div>
 									</div>
 									<div className="space-y-2">
 										<Label htmlFor="department">Department</Label>
@@ -520,7 +557,7 @@ export default function NodalOfficerManagementPage() {
 										<Input
 											id="set-password"
 											name="password"
-											type="password"
+											type="text"
 											placeholder="Enter new password"
 											required
 											minLength={6}
@@ -530,7 +567,7 @@ export default function NodalOfficerManagementPage() {
 										<Label htmlFor="confirm-password">Confirm Password</Label>
 										<Input
 											id="confirm-password"
-											type="password"
+											type="text"
 											placeholder="Confirm new password"
 											required
 											minLength={6}
@@ -603,7 +640,7 @@ export default function NodalOfficerManagementPage() {
 								<div>
 									<p className="text-sm text-blue-700">Active Officers</p>
 									<p className="text-2xl font-bold text-blue-800">
-										{nodalOfficers.filter((u: any) => u.emailVerified).length}
+										{nodalOfficers.length}
 									</p>
 								</div>
 								<CheckCircle className="w-8 h-8 text-blue-600" />
@@ -708,7 +745,6 @@ export default function NodalOfficerManagementPage() {
 										<TableHead>Name</TableHead>
 										<TableHead>Email</TableHead>
 										<TableHead>Department</TableHead>
-										<TableHead>Contact</TableHead>
 										<TableHead>Created</TableHead>
 										<TableHead>Actions</TableHead>
 									</TableRow>
@@ -717,7 +753,7 @@ export default function NodalOfficerManagementPage() {
 									{nodalOfficers.length === 0 ? (
 										<TableRow>
 											<TableCell
-												colSpan={6}
+												colSpan={5}
 												className="text-center py-8 text-slate-500">
 												No nodal officers found.
 											</TableCell>
@@ -738,11 +774,6 @@ export default function NodalOfficerManagementPage() {
 													<Badge variant="outline" className="capitalize">
 														{formatDepartment(user.department)}
 													</Badge>
-												</TableCell>
-												<TableCell>
-													<span className="text-sm">
-														{user.contact || "N/A"}
-													</span>
 												</TableCell>
 												<TableCell>
 													<div className="flex items-center space-x-2">

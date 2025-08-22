@@ -67,6 +67,7 @@ const kpitemplateZodSchema = z.object({
 	role: z.string().nonempty("Role is required"),
 	frequency: z.enum(["daily", "weekly", "monthly", "quarterly"]),
 	departmentSlug: z.string().nonempty("Department slug is required"),
+	kpiName: z.string().nonempty("KPI name is required"),
 	template: z
 		.array(
 			z.object({
@@ -74,9 +75,7 @@ const kpitemplateZodSchema = z.object({
 				description: z.string().nonempty("KPI description is required"),
 				maxMarks: z.number().int().min(0, "maxMarks must be non-negative"),
 				kpiType: z.literal("percentage"),
-				metric: z.string().nonempty("Metric formula is required"),
 				kpiUnit: z.literal("%"),
-				isDynamic: z.boolean(),
 				subKpis: z
 					.array(
 						z.object({
@@ -85,8 +84,8 @@ const kpitemplateZodSchema = z.object({
 							value_type: z.literal("number"),
 						})
 					)
-					.optional()
-					.default([]),
+					.default([])
+					.optional(),
 			})
 		)
 		.min(2, "At least 2 KPIs required")
@@ -112,6 +111,7 @@ export default function TemplateManagementPage() {
 	const [searchValue, setSearchValue] = React.useState("");
 	const [frequencyFilter, setFrequencyFilter] = React.useState("All");
 	const [roleFilter, setRoleFilter] = React.useState("All");
+	const [debouncedRoleFilter, setDebouncedRoleFilter] = React.useState("All");
 	const [kpiCount, setKpiCount] = React.useState(1);
 	const [subKpiCounts, setSubKpiCounts] = React.useState<{
 		[key: number]: number;
@@ -142,7 +142,7 @@ export default function TemplateManagementPage() {
 		search: searchValue || undefined,
 		departmentSlug: params.department as string,
 		frequency: frequencyFilter !== "All" ? (frequencyFilter as any) : undefined,
-		role: roleFilter !== "All" ? roleFilter : undefined,
+		role: debouncedRoleFilter !== "All" ? debouncedRoleFilter : undefined,
 	});
 
 	const { data: session } = useSession();
@@ -156,65 +156,74 @@ export default function TemplateManagementPage() {
 	const templates = templatesData?.docs || [];
 	const versions = versionsData?.versions || [];
 
+	// Debounce role filter to reduce API calls
+	React.useEffect(() => {
+		const timeout = setTimeout(() => {
+			setDebouncedRoleFilter(roleFilter);
+		}, 500);
+
+		return () => clearTimeout(timeout);
+	}, [roleFilter]);
+
 	const handleCreateTemplate = (e: React.FormEvent) => {
 		e.preventDefault();
-		const formData = new FormData(e.target as HTMLFormElement);
 
-		// Parse multiple KPIs from form data
-		const templateArray: KpiTemplate[] = [];
+		try {
+			const formData = new FormData(e.target as HTMLFormElement);
 
-		for (let i = 0; i < kpiCount; i++) {
-			const kpiType = formData.get(`kpi_${i}_type`) as string;
-			const subKpis: SubKpi[] = [];
+			// Parse multiple KPIs from form data
+			const templateArray: KpiTemplate[] = [];
 
-			if (kpiType === "subkpis") {
-				const subKpiCount = subKpiCounts[i] || 2;
-				for (let j = 0; j < subKpiCount; j++) {
-					const subKpiName = formData.get(
-						`kpi_${i}_subkpi_${j}_name`
-					) as string;
-					const subKpiKey = formData.get(`kpi_${i}_subkpi_${j}_key`) as string;
+			for (let i = 0; i < kpiCount; i++) {
+				const kpiType = formData.get(`kpi_${i}_type`) as string;
+				const subKpis: SubKpi[] = [];
 
-					if (subKpiName && subKpiKey) {
-						subKpis.push({
-							name: subKpiName,
-							key: subKpiKey,
-							value_type: "number",
-						});
+				if (kpiType === "subkpis") {
+					const subKpiCount = subKpiCounts[i] || 2;
+					for (let j = 0; j < subKpiCount; j++) {
+						const subKpiName = formData.get(
+							`kpi_${i}_subkpi_${j}_name`
+						) as string;
+						const subKpiKey = formData.get(
+							`kpi_${i}_subkpi_${j}_key`
+						) as string;
+
+						if (subKpiName && subKpiKey) {
+							subKpis.push({
+								name: subKpiName,
+								key: subKpiKey,
+								value_type: "number",
+							});
+						}
 					}
 				}
+
+				const kpi: KpiTemplate = {
+					name: formData.get(`kpi_${i}_name`) as string,
+					description: formData.get(`kpi_${i}_description`) as string,
+					maxMarks:
+						parseInt(formData.get(`kpi_${i}_maxMarks`) as string) || 100,
+					kpiType: "percentage",
+					kpiUnit: "%",
+					isDynamic: false,
+					subKpis: [],
+				};
+				templateArray.push(kpi);
 			}
 
-			const kpi: KpiTemplate = {
-				name: formData.get(`kpi_${i}_name`) as string,
-				description: formData.get(`kpi_${i}_description`) as string,
-				maxMarks: parseInt(formData.get(`kpi_${i}_maxMarks`) as string) || 100,
-				kpiType: "percentage",
-				metric: formData.get(`kpi_${i}_metric`) as string,
-				kpiUnit: "%",
-				isDynamic: formData.get(`kpi_${i}_isDynamic`) === "true",
-				subKpis: subKpis,
+			const createData = {
+				name: formData.get("name") as string,
+				description: formData.get("description") as string,
+				role: formData.get("role") as string,
+				frequency: "monthly",
+				kpiName: formData.get("kpiName") as string,
+				departmentSlug: params.department as string,
+				template: templateArray,
+				createdBy: session?.user?.id || "unknown",
+				updatedBy: session?.user?.id || "unknown",
 			};
-			templateArray.push(kpi);
-		}
 
-		const createData = {
-			name: formData.get("name") as string,
-			description: formData.get("description") as string,
-			role: formData.get("role") as string,
-			frequency: formData.get("frequency") as
-				| "daily"
-				| "weekly"
-				| "monthly"
-				| "quarterly",
-			departmentSlug: params.department as string,
-			template: templateArray,
-			createdBy: session?.user?.id || "unknown",
-			updatedBy: session?.user?.id || "unknown",
-		};
-
-		// Validate data using Zod schema
-		try {
+			// Validate data using Zod schema
 			const validatedData = kpitemplateZodSchema.parse(createData);
 
 			createTemplateMutation.mutate(validatedData as CreateTemplateData, {
@@ -225,89 +234,105 @@ export default function TemplateManagementPage() {
 				},
 				onError: (error: any) => {
 					console.error("Template creation failed:", error);
-					// You can add toast notification here for better UX
+
+					// Handle API errors gracefully
+					let errorMessage = "Failed to create template. ";
+
+					if (error?.response?.data?.message) {
+						errorMessage += error.response.data.message;
+					} else if (error?.message) {
+						errorMessage += error.message;
+					} else {
+						errorMessage += "Please try again.";
+					}
+
+					alert(errorMessage);
 				},
 			});
-		} catch (validationError: any) {
-			console.error("Validation failed:", validationError);
+		} catch (error: any) {
+			console.error("Template creation error:", error);
 
-			// Handle validation errors
-			if (validationError.errors) {
-				validationError.errors.forEach((error: any) => {
-					console.error(
-						`Validation Error: ${error.path.join(".")} - ${error.message}`
-					);
-				});
+			// Handle all errors gracefully (including Zod validation)
+			let errorMessage = "Please check the form data. ";
+
+			if (error?.errors && Array.isArray(error.errors)) {
+				// Zod validation error
+				const errorDetails = error.errors
+					.map((err: any) => {
+						const fieldPath = err.path.join(".");
+						return `${fieldPath}: ${err.message}`;
+					})
+					.join(", ");
+				errorMessage += errorDetails;
+			} else if (error?.message) {
+				errorMessage += error.message;
+			} else {
+				errorMessage += "Validation failed. Please check all required fields.";
 			}
 
-			// You can add toast notification here to show validation errors to user
-			alert(
-				"Please check the form data. Validation failed: " +
-					validationError.message
-			);
+			// Show user-friendly error message
+			alert(errorMessage);
 		}
 	};
 
 	const handleEditTemplate = (e: React.FormEvent) => {
 		e.preventDefault();
-		const formData = new FormData(e.target as HTMLFormElement);
 
-		// Parse multiple KPIs from form data for editing
-		const templateArray: KpiTemplate[] = [];
+		try {
+			const formData = new FormData(e.target as HTMLFormElement);
 
-		for (let i = 0; i < editKpiCount; i++) {
-			const kpiType = formData.get(`edit_kpi_${i}_type`) as string;
-			const subKpis: SubKpi[] = [];
+			// Parse multiple KPIs from form data for editing
+			const templateArray: KpiTemplate[] = [];
 
-			if (kpiType === "subkpis") {
-				const subKpiCount = editSubKpiCounts[i] || 2;
-				for (let j = 0; j < subKpiCount; j++) {
-					const subKpiName = formData.get(
-						`edit_kpi_${i}_subkpi_${j}_name`
-					) as string;
-					const subKpiKey = formData.get(
-						`edit_kpi_${i}_subkpi_${j}_key`
-					) as string;
+			for (let i = 0; i < editKpiCount; i++) {
+				const kpiType = formData.get(`edit_kpi_${i}_type`) as string;
+				const subKpis: SubKpi[] = [];
 
-					if (subKpiName && subKpiKey) {
-						subKpis.push({
-							name: subKpiName,
-							key: subKpiKey,
-							value_type: "number",
-						});
+				if (kpiType === "subkpis") {
+					const subKpiCount = editSubKpiCounts[i] || 2;
+					for (let j = 0; j < subKpiCount; j++) {
+						const subKpiName = formData.get(
+							`edit_kpi_${i}_subkpi_${j}_name`
+						) as string;
+						const subKpiKey = formData.get(
+							`edit_kpi_${i}_subkpi_${j}_key`
+						) as string;
+
+						if (subKpiName && subKpiKey) {
+							subKpis.push({
+								name: subKpiName,
+								key: subKpiKey,
+								value_type: "number",
+							});
+						}
 					}
 				}
+
+				const kpi: KpiTemplate = {
+					name: formData.get(`edit_kpi_${i}_name`) as string,
+					description: formData.get(`edit_kpi_${i}_description`) as string,
+					maxMarks:
+						parseInt(formData.get(`edit_kpi_${i}_maxMarks`) as string) || 100,
+					kpiType: "percentage",
+					kpiUnit: "%",
+					isDynamic: false,
+					subKpis: [],
+				};
+				templateArray.push(kpi);
 			}
 
-			const kpi: KpiTemplate = {
-				name: formData.get(`edit_kpi_${i}_name`) as string,
-				description: formData.get(`edit_kpi_${i}_description`) as string,
-				maxMarks:
-					parseInt(formData.get(`edit_kpi_${i}_maxMarks`) as string) || 100,
-				kpiType: "percentage",
-				metric: formData.get(`edit_kpi_${i}_metric`) as string,
-				kpiUnit: "%",
-				isDynamic: formData.get(`edit_kpi_${i}_isDynamic`) === "true",
-				subKpis: subKpis,
+			const updateData = {
+				name: formData.get("name") as string,
+				description: formData.get("description") as string,
+				role: formData.get("role") as string,
+				frequency: "monthly",
+				kpiName: formData.get("kpiName") as string,
+				departmentSlug: params.department as string,
+				template: templateArray,
+				updatedBy: session?.user?.id || "unknown",
 			};
-			templateArray.push(kpi);
-		}
 
-		const updateData = {
-			name: formData.get("name") as string,
-			description: formData.get("description") as string,
-			role: formData.get("role") as string,
-			frequency: formData.get("frequency") as
-				| "daily"
-				| "weekly"
-				| "monthly"
-				| "quarterly",
-			template: templateArray,
-			updatedBy: session?.user?.id || "unknown",
-		};
-
-		// Validate data using Zod schema (excluding required fields that are already set)
-		try {
+			// Validate data using Zod schema (excluding required fields that are already set)
 			// Create a partial validation schema for updates
 			const updateValidationSchema = kpitemplateZodSchema.partial().pick({
 				name: true,
@@ -329,27 +354,45 @@ export default function TemplateManagementPage() {
 					},
 					onError: (error: any) => {
 						console.error("Template update failed:", error);
-						// You can add toast notification here for better UX
+
+						// Handle API errors gracefully
+						let errorMessage = "Failed to update template. ";
+
+						if (error?.response?.data?.message) {
+							errorMessage += error.response.data.message;
+						} else if (error?.message) {
+							errorMessage += error.message;
+						} else {
+							errorMessage += "Please try again.";
+						}
+
+						alert(errorMessage);
 					},
 				}
 			);
-		} catch (validationError: any) {
-			console.error("Validation failed:", validationError);
+		} catch (error: any) {
+			console.error("Template update error:", error);
 
-			// Handle validation errors
-			if (validationError.errors) {
-				validationError.errors.forEach((error: any) => {
-					console.error(
-						`Validation Error: ${error.path.join(".")} - ${error.message}`
-					);
-				});
+			// Handle all errors gracefully (including Zod validation)
+			let errorMessage = "Please check the form data. ";
+
+			if (error?.errors && Array.isArray(error.errors)) {
+				// Zod validation error
+				const errorDetails = error.errors
+					.map((err: any) => {
+						const fieldPath = err.path.join(".");
+						return `${fieldPath}: ${err.message}`;
+					})
+					.join(", ");
+				errorMessage += errorDetails;
+			} else if (error?.message) {
+				errorMessage += error.message;
+			} else {
+				errorMessage += "Validation failed. Please check all required fields.";
 			}
 
-			// You can add toast notification here to show validation errors to user
-			alert(
-				"Please check the form data. Validation failed: " +
-					validationError.message
-			);
+			// Show user-friendly error message
+			alert(errorMessage);
 		}
 	};
 
@@ -358,6 +401,22 @@ export default function TemplateManagementPage() {
 			onSuccess: () => {
 				setShowDeleteConfirm(false);
 				setSelectedTemplate(null);
+			},
+			onError: (error: any) => {
+				console.error("Template deletion failed:", error);
+
+				// Handle API errors gracefully
+				let errorMessage = "Failed to delete template. ";
+
+				if (error?.response?.data?.message) {
+					errorMessage += error.response.data.message;
+				} else if (error?.message) {
+					errorMessage += error.message;
+				} else {
+					errorMessage += "Please try again.";
+				}
+
+				alert(errorMessage);
 			},
 		});
 	};
@@ -557,6 +616,14 @@ export default function TemplateManagementPage() {
 		}
 	};
 
+	const debounce = (func: (...args: any[]) => void, delay: number) => {
+		let timeout: NodeJS.Timeout;
+		return (...args: any[]) => {
+			clearTimeout(timeout);
+			timeout = setTimeout(() => func(...args), delay);
+		};
+	};
+
 	return (
 		<div className="min-h-screen bg-gradient-to-b from-slate-50 to-blue-50">
 			{/* Header */}
@@ -658,8 +725,8 @@ export default function TemplateManagementPage() {
 											/>
 										</div>
 										<div className="space-y-2">
-											<Label htmlFor="role">Role</Label>
-											<Input name="role" placeholder="Enter role" required />
+											<Label htmlFor="role">Post</Label>
+											<Input name="role" placeholder="Enter post" required />
 										</div>
 										<div className="space-y-2">
 											<Label htmlFor="departmentSlug">Department</Label>
@@ -680,19 +747,12 @@ export default function TemplateManagementPage() {
 											</Select>
 										</div>
 										<div className="space-y-2">
-											<Label htmlFor="frequency">Frequency</Label>
-											<Select name="frequency" required>
-												<SelectTrigger className="w-full">
-													<SelectValue placeholder="Select frequency" />
-												</SelectTrigger>
-												<SelectContent>
-													{frequencies.map((freq) => (
-														<SelectItem key={freq} value={freq}>
-															{formatFrequency(freq)}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
+											<Label htmlFor="kpiName">KPI Name</Label>
+											<Input
+												name="kpiName"
+												placeholder="Enter KPI name"
+												required
+											/>
 										</div>
 										<div className="space-y-2 col-span-2">
 											<Label htmlFor="description">Description</Label>
@@ -772,41 +832,15 @@ export default function TemplateManagementPage() {
 														required
 													/>
 												</div>
-												<div className="space-y-2">
-													<Label htmlFor={`kpi_${kpiIndex}_metric`}>
-														Metric Formula
-													</Label>
-													<Input
-														name={`kpi_${kpiIndex}_metric`}
-														placeholder="e.g., (completed_tasks / total_tasks) * 100"
-														required
-													/>
-												</div>
-												<div className="space-y-2">
-													<Label htmlFor={`kpi_${kpiIndex}_isDynamic`}>
-														Dynamic KPI
-													</Label>
-													<Select
-														name={`kpi_${kpiIndex}_isDynamic`}
-														defaultValue="true">
-														<SelectTrigger className="w-full">
-															<SelectValue />
-														</SelectTrigger>
-														<SelectContent>
-															<SelectItem value="true">Yes</SelectItem>
-															<SelectItem value="false">No</SelectItem>
-														</SelectContent>
-													</Select>
-												</div>
 
 												{/* KPI Type Selection */}
-												<div className="space-y-2">
+												<div className="space-y-2 hidden">
 													<Label htmlFor={`kpi_${kpiIndex}_type`}>
 														KPI Input Type
 													</Label>
 													<Select
 														name={`kpi_${kpiIndex}_type`}
-														value={kpiTypes[kpiIndex] || "subkpis"}
+														value={kpiTypes[kpiIndex] || "direct"}
 														onValueChange={(value) =>
 															toggleSubKpiVisibility(kpiIndex, value, false)
 														}>
@@ -825,7 +859,7 @@ export default function TemplateManagementPage() {
 												</div>
 
 												{/* Sub-KPIs - Only show if type is subkpis */}
-												{(kpiTypes[kpiIndex] || "subkpis") === "subkpis" && (
+												{/* {(kpiTypes[kpiIndex] || "subkpis") === "subkpis" && (
 													<div className="space-y-3">
 														<div className="flex items-center justify-between">
 															<Label className="text-sm font-medium">
@@ -912,7 +946,7 @@ export default function TemplateManagementPage() {
 															)
 														)}
 													</div>
-												)}
+												)} */}
 											</div>
 										))}
 									</div>
@@ -1036,19 +1070,13 @@ export default function TemplateManagementPage() {
 									))}
 								</SelectContent>
 							</Select>
-							<Select value={roleFilter} onValueChange={setRoleFilter}>
-								<SelectTrigger className="w-full">
-									<SelectValue placeholder="Filter by role" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="All">All Roles</SelectItem>
-									{roles.map((role) => (
-										<SelectItem key={role} value={role}>
-											{formatRole(role)}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
+							<Input
+								value={roleFilter}
+								onChange={(e) => {
+									setRoleFilter(e.target.value);
+								}}
+								placeholder="Search by role"
+							/>
 							<Button
 								variant="outline"
 								onClick={() => {
@@ -1237,23 +1265,15 @@ export default function TemplateManagementPage() {
 									/>
 								</div>
 								<div className="space-y-2">
-									<Label htmlFor="edit-frequency">Frequency</Label>
-									<Select
-										name="frequency"
-										defaultValue={selectedTemplate?.frequency}
-										required>
-										<SelectTrigger className="w-full">
-											<SelectValue placeholder="Select frequency" />
-										</SelectTrigger>
-										<SelectContent>
-											{frequencies.map((freq) => (
-												<SelectItem key={freq} value={freq}>
-													{formatFrequency(freq)}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
+									<Label htmlFor="edit-kpiName">KPI Name</Label>
+									<Input
+										name="kpiName"
+										placeholder="Enter KPI name"
+										defaultValue={selectedTemplate?.kpiName}
+										required
+									/>
 								</div>
+
 								<div className="space-y-2 col-span-2">
 									<Label htmlFor="edit-description">Description</Label>
 									<Input
@@ -1336,154 +1356,6 @@ export default function TemplateManagementPage() {
 													required
 												/>
 											</div>
-											<div className="space-y-2">
-												<Label htmlFor={`edit_kpi_${kpiIndex}_metric`}>
-													Metric Formula
-												</Label>
-												<Input
-													name={`edit_kpi_${kpiIndex}_metric`}
-													placeholder="e.g., (completed_tasks / total_tasks) * 100"
-													defaultValue={existingKpi?.metric || ""}
-													required
-												/>
-											</div>
-											<div className="space-y-2">
-												<Label htmlFor={`edit_kpi_${kpiIndex}_isDynamic`}>
-													Dynamic KPI
-												</Label>
-												<Select
-													name={`edit_kpi_${kpiIndex}_isDynamic`}
-													defaultValue={
-														existingKpi?.isDynamic?.toString() || "true"
-													}>
-													<SelectTrigger className="w-full">
-														<SelectValue />
-													</SelectTrigger>
-													<SelectContent>
-														<SelectItem value="true">Yes</SelectItem>
-														<SelectItem value="false">No</SelectItem>
-													</SelectContent>
-												</Select>
-											</div>
-
-											{/* KPI Type Selection */}
-											<div className="space-y-2">
-												<Label htmlFor={`edit_kpi_${kpiIndex}_type`}>
-													KPI Input Type
-												</Label>
-												<Select
-													name={`edit_kpi_${kpiIndex}_type`}
-													value={
-														editKpiTypes[kpiIndex] ||
-														(existingKpi?.subKpis?.length > 0
-															? "subkpis"
-															: "direct")
-													}
-													onValueChange={(value) =>
-														toggleSubKpiVisibility(kpiIndex, value, true)
-													}>
-													<SelectTrigger className="w-full">
-														<SelectValue />
-													</SelectTrigger>
-													<SelectContent>
-														<SelectItem value="subkpis">
-															Sub-KPIs (Calculate from sub-values)
-														</SelectItem>
-														<SelectItem value="direct">
-															Direct Value (Single input)
-														</SelectItem>
-													</SelectContent>
-												</Select>
-											</div>
-
-											{/* Sub-KPIs - Only show if type is subkpis */}
-											{(editKpiTypes[kpiIndex] ||
-												(existingKpi?.subKpis?.length > 0
-													? "subkpis"
-													: "direct")) === "subkpis" && (
-												<div className="space-y-3">
-													<div className="flex items-center justify-between">
-														<Label className="text-sm font-medium">
-															Sub-KPIs
-														</Label>
-														<Button
-															type="button"
-															variant="outline"
-															size="sm"
-															onClick={() => addEditSubKpi(kpiIndex)}
-															className="text-blue-600 hover:text-blue-700">
-															<Plus className="w-3 h-3 mr-1" />
-															Add Sub-KPI
-														</Button>
-													</div>
-													{Array.from(
-														{ length: editSubKpiCounts[kpiIndex] || 2 },
-														(_, subKpiIndex) => {
-															const existingSubKpi =
-																existingKpi?.subKpis?.[subKpiIndex];
-															return (
-																<div
-																	key={subKpiIndex}
-																	className="flex items-center space-x-2 p-3 bg-slate-50 rounded-lg">
-																	<div className="flex-1 grid grid-cols-2 gap-2">
-																		<div>
-																			<Label
-																				htmlFor={`edit_kpi_${kpiIndex}_subkpi_${subKpiIndex}_name`}
-																				className="text-xs">
-																				Name
-																			</Label>
-																			<Input
-																				name={`edit_kpi_${kpiIndex}_subkpi_${subKpiIndex}_name`}
-																				placeholder="e.g., दर्ज"
-																				className="text-sm"
-																				defaultValue={
-																					existingSubKpi?.name || ""
-																				}
-																				required
-																			/>
-																		</div>
-																		<div>
-																			<Label
-																				htmlFor={`edit_kpi_${kpiIndex}_subkpi_${subKpiIndex}_key`}
-																				className="text-xs">
-																				Key
-																			</Label>
-																			<Input
-																				name={`edit_kpi_${kpiIndex}_subkpi_${subKpiIndex}_key`}
-																				placeholder="e.g., darj"
-																				className="text-sm"
-																				defaultValue={existingSubKpi?.key || ""}
-																				required
-																			/>
-																		</div>
-																	</div>
-																	{(editSubKpiCounts[kpiIndex] || 2) > 1 && (
-																		<div className="flex flex-col items-end justify-end">
-																			<Label
-																				htmlFor={`edit_kpi_${kpiIndex}_subkpi_${subKpiIndex}_key`}
-																				className="text-xs opacity-0">
-																				R
-																			</Label>
-																			<Button
-																				type="button"
-																				variant="outline"
-																				onClick={() =>
-																					removeEditSubKpi(
-																						kpiIndex,
-																						subKpiIndex
-																					)
-																				}
-																				className="text-red-600 hover:text-red-700">
-																				<Trash2 className="w-4 h-4" />
-																			</Button>
-																		</div>
-																	)}
-																</div>
-															);
-														}
-													)}
-												</div>
-											)}
 										</div>
 									);
 								})}

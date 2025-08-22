@@ -53,20 +53,13 @@ import {
 	useCreateEntry,
 	useUpdateEntry,
 	useUpdateEntryStatus,
-	// Workflow hooks
-	useGetWorkflowEntry,
-	useGetAvailableEntries,
-	useGetDepartmentEmployees,
 	useGetEmployeeTemplates,
-	useGetFormStructure,
 	useSearchEntries,
 	useGetTemplate,
 	CreateEntryData,
 	UpdateEntryData,
 	KpiName,
 	KpiValue,
-	SubKpiValue,
-	Entry,
 	SearchEntriesParams,
 	Employee,
 } from "@/queries";
@@ -134,11 +127,11 @@ export default function EntryPage() {
 	// State for employee search and filtering
 	const [employeeNameSearch, setEmployeeNameSearch] = useState("");
 	const [employeeRoleSearch, setEmployeeRoleSearch] = useState("");
+	const [debouncedNameSearch, setDebouncedNameSearch] = useState("");
+	const [debouncedRoleSearch, setDebouncedRoleSearch] = useState("");
 
 	// KPI Names state for step 4
-	const [kpiNameInputs, setKpiNameInputs] = useState<KpiName[]>([
-		{ label: "", value: "" },
-	]);
+	const [kpiNameInputs, setKpiNameInputs] = useState<KpiName[]>([]);
 
 	// UI states
 	const [searchValue, setSearchValue] = useState("");
@@ -156,36 +149,24 @@ export default function EntryPage() {
 			department: params.department as string,
 			page: 1,
 			limit: 10,
-			search: "",
+			search: debouncedNameSearch || debouncedRoleSearch || "", // It can be name, email, phone or role
 		});
 
 	const { data: templatesData, isLoading: templatesLoading } =
-		useGetEmployeeTemplates(stepData.employeeId);
+		useGetEmployeeTemplates(currentStep >= 2 ? stepData.employeeId : undefined);
 
-	// Filter employees based on search criteria
-	const filteredEmployees =
-		employeesData?.docs?.filter((employee: Employee) => {
-			const nameMatch = employee.name
-				.toLowerCase()
-				.includes(employeeNameSearch.toLowerCase());
-
-			// Check for role in different possible locations
-			const employeeRole = employee.departmentRole;
-			const roleMatch =
-				employeeRoleSearch === "" ||
-				employeeRole.toLowerCase().includes(employeeRoleSearch.toLowerCase());
-
-			return nameMatch && roleMatch;
-		}) || [];
+	// Use API search results directly
+	const filteredEmployees = employeesData?.docs || [];
 
 	// Get template data for form generation
 	const { data: templateData, isLoading: templateLoading } = useGetTemplate(
-		stepData.templateId
+		currentStep >= 6 ? stepData.templateId : undefined
 	) as { data: GetTemplateResponse | undefined; isLoading: boolean };
 
 	// Search entries
-	const { data: searchData, isLoading: searchLoading } =
-		useSearchEntries(searchParams);
+	const { data: searchData, isLoading: searchLoading } = useSearchEntries(
+		currentStep === 5 ? searchParams : {}
+	);
 
 	// Debug search hook
 	useEffect(() => {
@@ -261,6 +242,26 @@ export default function EntryPage() {
 		nextStep();
 	};
 
+	// Generate KPI names from template when template is selected
+	useEffect(() => {
+		if (stepData.templateId && templatesData?.templates) {
+			const selectedTemplate = templatesData.templates.find(
+				(template: any) => template._id === stepData.templateId
+			);
+
+			if (selectedTemplate && selectedTemplate.kpiName) {
+				// Split comma-separated kpiName and create KPI name inputs
+				const kpiNames = selectedTemplate.kpiName
+					.split(",")
+					.map((name: string) => name.trim())
+					.filter((name: string) => name.length > 0)
+					.map((name: string) => ({ label: name, value: "" }));
+
+				setKpiNameInputs(kpiNames);
+			}
+		}
+	}, [stepData.templateId, templatesData]);
+
 	// Step 3: Choose Month and Year
 	const handleMonthYearSelect = (month: number, year: number) => {
 		setStepData((prev) => ({ ...prev, month, year }));
@@ -268,10 +269,6 @@ export default function EntryPage() {
 	};
 
 	// Step 4: Add KPI Names
-	const addKpiNameInput = () => {
-		setKpiNameInputs([...kpiNameInputs, { label: "", value: "" }]);
-	};
-
 	const removeKpiNameInput = (index: number) => {
 		if (kpiNameInputs.length > 1) {
 			setKpiNameInputs(kpiNameInputs.filter((_, i) => i !== index));
@@ -371,6 +368,23 @@ export default function EntryPage() {
 			)?.name || ""
 		);
 	};
+
+	// Debounce search inputs to reduce API calls
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			setDebouncedNameSearch(employeeNameSearch);
+		}, 500); // 500ms delay
+
+		return () => clearTimeout(timer);
+	}, [employeeNameSearch]);
+
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			setDebouncedRoleSearch(employeeRoleSearch);
+		}, 500); // 500ms delay
+
+		return () => clearTimeout(timer);
+	}, [employeeRoleSearch]);
 
 	// Generate form data when template is loaded
 	useEffect(() => {
@@ -659,7 +673,11 @@ export default function EntryPage() {
 										<div className="flex justify-between items-center mt-4">
 											<div className="text-sm text-gray-600">
 												Showing {filteredEmployees.length} of{" "}
-												{employeesData?.docs?.length || 0} employees
+												{employeesData?.total || 0} employees
+												{(employeeNameSearch !== debouncedNameSearch ||
+													employeeRoleSearch !== debouncedRoleSearch) && (
+													<Loader2 className="inline w-4 h-4 animate-spin ml-2" />
+												)}
 											</div>
 											<Button
 												variant="outline"
@@ -667,6 +685,8 @@ export default function EntryPage() {
 												onClick={() => {
 													setEmployeeNameSearch("");
 													setEmployeeRoleSearch("");
+													setDebouncedNameSearch("");
+													setDebouncedRoleSearch("");
 												}}
 												className="text-gray-600 hover:text-gray-800">
 												Clear Filters
@@ -873,6 +893,7 @@ export default function EntryPage() {
 															<Input
 																placeholder="KPI Label (e.g., Task Completion Rate)"
 																value={kpi.label}
+																disabled
 																onChange={(e) =>
 																	updateKpiNameInput(
 																		index,
@@ -906,13 +927,6 @@ export default function EntryPage() {
 													</CardContent>
 												</Card>
 											))}
-											<Button
-												variant="outline"
-												size="sm"
-												onClick={addKpiNameInput}>
-												<Plus className="w-4 h-4 mr-2" />
-												Add KPI Name
-											</Button>
 										</div>
 										<div className="flex space-x-4">
 											<Button

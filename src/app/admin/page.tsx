@@ -158,6 +158,24 @@ Report Generated: ${new Date().toLocaleString()}
 			return matchesSearch && matchesDepartment && matchesRole && matchesStatus;
 		}) || [];
 
+	// Determine if we should show detailed KPI names (when department and role are selected)
+	const showDetailedKpiNames =
+		departmentFilter !== "all" && roleFilter !== "all";
+
+	// Get unique KPI name labels from the data
+	const uniqueKpiLabels = React.useMemo(() => {
+		if (!statsData?.ranking) return [];
+
+		const allLabels = new Set<string>();
+		statsData.ranking.forEach((member) => {
+			member.kpiNames?.forEach((kpi) => {
+				allLabels.add(kpi.label);
+			});
+		});
+
+		return Array.from(allLabels).sort();
+	}, [statsData?.ranking]);
+
 	// Calculate statistics from API data
 	const overallStats = statsData?.statistics
 		? {
@@ -647,6 +665,19 @@ Report Generated: ${new Date().toLocaleString()}
 											<TableHead className="font-bold text-slate-700 text-center">
 												Role
 											</TableHead>
+											{showDetailedKpiNames ? (
+												uniqueKpiLabels.map((label) => (
+													<TableHead
+														key={label}
+														className="font-bold text-slate-700 text-center capitalize">
+														{label}
+													</TableHead>
+												))
+											) : (
+												<TableHead className="font-bold text-slate-700 text-center capitalize">
+													Unique
+												</TableHead>
+											)}
 											<TableHead className="font-bold text-slate-700 text-center">
 												Score
 											</TableHead>
@@ -705,6 +736,29 @@ Report Generated: ${new Date().toLocaleString()}
 														{member.employee.departmentRole}
 													</span>
 												</TableCell>
+												{showDetailedKpiNames ? (
+													uniqueKpiLabels.map((label) => {
+														const kpiValue =
+															member.kpiNames?.find(
+																(kpi) => kpi.label === label
+															)?.value || "-";
+														return (
+															<TableCell
+																key={label}
+																className="text-center capitalize">
+																<span className="text-sm text-slate-700 font-medium">
+																	{kpiValue}
+																</span>
+															</TableCell>
+														);
+													})
+												) : (
+													<TableCell className="text-center">
+														<span className="text-sm text-slate-700 font-medium">
+															{member.kpiNames?.[0]?.value || "-"}
+														</span>
+													</TableCell>
+												)}
 												<TableCell className="text-center">
 													<span
 														className={`inline-block px-3 py-2 rounded-full text-sm font-bold ${getScoreColor(
