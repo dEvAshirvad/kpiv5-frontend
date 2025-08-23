@@ -92,7 +92,7 @@ export const useSignOut = () => {
 	return useMutation({
 		mutationFn: authApiFunctions.signOut,
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["session"] });
+			queryClient.clear(); // Clear all queries
 		},
 	});
 };

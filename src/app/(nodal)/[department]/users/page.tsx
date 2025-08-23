@@ -125,11 +125,7 @@ export default function EmployeeManagementPage() {
 
 	const handleLogout = () => {
 		console.log("Logout clicked");
-		signOutMutation.mutate(undefined, {
-			onSuccess: () => {
-				router.push("/login");
-			},
-		});
+		signOutMutation.mutate();
 		router.push("/login");
 	};
 

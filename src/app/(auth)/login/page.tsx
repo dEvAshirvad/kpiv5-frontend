@@ -25,7 +25,11 @@ function LoginPage() {
 	const router = useRouter();
 	const signInMutation = useSignIn();
 	const [enabled, setEnabled] = useState(false);
-	const { data: session, isLoading: isSessionLoading } = useSession(enabled);
+	const {
+		data: session,
+		isLoading: isSessionLoading,
+		isFetched: isSessionFetched,
+	} = useSession(enabled);
 
 	const form = useForm<z.infer<typeof formSchema>>({
 		resolver: zodResolver(formSchema),
@@ -55,7 +59,7 @@ function LoginPage() {
 	};
 
 	useEffect(() => {
-		if (session && !isSessionLoading) {
+		if (session && !isSessionLoading && isSessionFetched) {
 			if (session.user.departmentRole === "nodalOfficer") {
 				router.push(`/${session.user.department}/users`);
 			} else if (session.user.department === "collector-office") {
@@ -64,7 +68,7 @@ function LoginPage() {
 				router.push("/");
 			}
 		}
-	}, [session]);
+	}, [enabled, session, isSessionLoading, isSessionFetched]);
 
 	return (
 		<div className="container mx-auto px-4 py-8">

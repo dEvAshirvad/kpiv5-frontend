@@ -422,11 +422,8 @@ export default function TemplateManagementPage() {
 	};
 
 	const handleLogout = () => {
-		signOutMutation.mutate(undefined, {
-			onSuccess: () => {
-				router.push("/login");
-			},
-		});
+		signOutMutation.mutate();
+		router.push("/login");
 	};
 
 	const getFrequencyColor = (frequency: string) => {
