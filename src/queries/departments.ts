@@ -78,7 +78,7 @@ const departmentApi = {
 	},
 
 	listDepartments: async (): Promise<ListDepartmentsResponse> => {
-		const response = await authApi.get("/v1/departments");
+		const response = await authApi.get("/v1/departments?limit=100");
 		return response.data;
 	},
 
