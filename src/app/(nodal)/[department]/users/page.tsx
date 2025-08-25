@@ -118,6 +118,8 @@ export default function EmployeeManagementPage() {
 				// Close modal and reset form
 				const form = e.target as HTMLFormElement;
 				form.reset();
+				// Reset to first page and refetch
+				setCurrentPage(1);
 				refetch();
 			},
 		});
@@ -152,6 +154,7 @@ export default function EmployeeManagementPage() {
 				onSuccess: () => {
 					setShowEditEmployee(false);
 					setSelectedEmployee(null);
+					// Refetch current page data
 					refetch();
 				},
 			}
@@ -163,6 +166,8 @@ export default function EmployeeManagementPage() {
 			onSuccess: () => {
 				setShowDeleteConfirm(false);
 				setSelectedEmployee(null);
+				// Refetch data after deletion
+				refetch();
 			},
 		});
 	};
@@ -215,6 +220,11 @@ export default function EmployeeManagementPage() {
 	React.useEffect(() => {
 		setCurrentPage(1);
 	}, [debouncedSearchValue]);
+
+	// Reset to first page when page size changes
+	React.useEffect(() => {
+		setCurrentPage(1);
+	}, [pageSize]);
 
 	// Department and role options
 	const departmentOptions = departments.map((dept) => dept.slug);
@@ -734,23 +744,35 @@ export default function EmployeeManagementPage() {
 						<CardContent className="p-4">
 							<div className="flex items-center justify-between">
 								<div className="text-sm text-slate-600">
-									Showing {(currentPage - 1) * pageSize + 1} to{" "}
-									{Math.min(currentPage * pageSize, employeesData.total)} of{" "}
-									{employeesData.total} employees
+									{isLoading ? (
+										<div className="flex items-center space-x-2">
+											<Loader2 className="w-4 h-4 animate-spin" />
+											<span>Loading...</span>
+										</div>
+									) : (
+										`Showing ${
+											employees.length > 0
+												? (currentPage - 1) * pageSize + 1
+												: 0
+										} to ${Math.min(
+											currentPage * pageSize,
+											employeesData.total
+										)} of ${employeesData.total} employees`
+									)}
 								</div>
 								<div className="flex items-center space-x-2">
 									<Button
 										variant="outline"
 										size="sm"
 										onClick={() => setCurrentPage(1)}
-										disabled={currentPage === 1}>
+										disabled={currentPage === 1 || isLoading}>
 										First
 									</Button>
 									<Button
 										variant="outline"
 										size="sm"
 										onClick={() => setCurrentPage(currentPage - 1)}
-										disabled={currentPage === 1}>
+										disabled={currentPage === 1 || isLoading}>
 										Previous
 									</Button>
 									<div className="flex items-center space-x-1">
@@ -773,6 +795,7 @@ export default function EmployeeManagementPage() {
 														}
 														size="sm"
 														onClick={() => setCurrentPage(pageNum)}
+														disabled={isLoading}
 														className="w-8 h-8 p-0">
 														{pageNum}
 													</Button>
@@ -784,14 +807,18 @@ export default function EmployeeManagementPage() {
 										variant="outline"
 										size="sm"
 										onClick={() => setCurrentPage(currentPage + 1)}
-										disabled={currentPage === employeesData.totalPages}>
+										disabled={
+											currentPage === employeesData.totalPages || isLoading
+										}>
 										Next
 									</Button>
 									<Button
 										variant="outline"
 										size="sm"
 										onClick={() => setCurrentPage(employeesData.totalPages)}
-										disabled={currentPage === employeesData.totalPages}>
+										disabled={
+											currentPage === employeesData.totalPages || isLoading
+										}>
 										Last
 									</Button>
 								</div>

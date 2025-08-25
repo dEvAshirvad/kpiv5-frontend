@@ -78,23 +78,23 @@ export default function AdminPage() {
 	};
 
 	const handleViewDetails = (member: RankingEntry) => {
-		console.log("View details for:", member.employee.name);
+		console.log("View details for:", member.employee?.name || "Unknown");
 		setSelectedMember(member);
 		setShowDetailModal(true);
 	};
 
 	const handleDownloadReport = (member: RankingEntry) => {
-		console.log("Download report for:", member.employee.name);
+		console.log("Download report for:", member.employee?.name || "Unknown");
 		const reportContent = `
 KPI Performance Report - Overall Statistics
-Department: ${member.employee.department}
-Role: ${member.employee.departmentRole}
+Department: ${member.employee?.department || "Unknown"}
+Role: ${member.employee?.departmentRole || "Unknown"}
 
 Member Details:
-Name: ${member.employee.name}
-Email: ${member.employee.contact.email}
-Department: ${member.employee.department}
-Role: ${member.employee.departmentRole}
+Name: ${member.employee?.name || "Unknown"}
+Email: ${member.employee?.contact?.email || "Unknown"}
+Department: ${member.employee?.department || "Unknown"}
+Role: ${member.employee?.departmentRole || "Unknown"}
 
 Performance Summary:
 Ranking: ${member.rank}
@@ -108,7 +108,7 @@ Report Generated: ${new Date().toLocaleString()}
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement("a");
 		a.href = url;
-		a.download = `kpi-report-${member.employee.name}.txt`;
+		a.download = `kpi-report-${member.employee?.name || "unknown"}.txt`;
 		document.body.appendChild(a);
 		a.click();
 		document.body.removeChild(a);
@@ -140,17 +140,19 @@ Report Generated: ${new Date().toLocaleString()}
 	const filteredMembers =
 		statsData?.ranking?.filter((member) => {
 			const matchesSearch =
-				member.employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-				member.employee.contact.email
-					.toLowerCase()
-					.includes(searchTerm.toLowerCase());
+				(member.employee?.name?.toLowerCase() || "").includes(
+					searchTerm.toLowerCase()
+				) ||
+				(member.employee?.contact?.email?.toLowerCase() || "").includes(
+					searchTerm.toLowerCase()
+				);
 
 			const matchesDepartment =
 				departmentFilter === "all" ||
-				member.employee.department === departmentFilter;
+				member.employee?.department === departmentFilter;
 
 			const matchesRole =
-				roleFilter === "all" || member.employee.departmentRole === roleFilter;
+				roleFilter === "all" || member.employee?.departmentRole === roleFilter;
 
 			const matchesStatus =
 				statusFilter === "all" || member.status === statusFilter;
@@ -617,14 +619,14 @@ Report Generated: ${new Date().toLocaleString()}
 										</div>
 										<div className="flex-1">
 											<p className="font-bold text-slate-800 text-sm">
-												{member.employee.name}
+												{member.employee?.name || "Unknown"}
 											</p>
 											<p className="text-xs text-slate-600">
-												{member.employee.contact.email}
+												{member.employee?.contact?.email || "No email"}
 											</p>
 											<p className="text-xs text-slate-600 capitalize">
-												{member.employee.department} •{" "}
-												{member.employee.departmentRole}
+												{member.employee?.department || "Unknown"} •{" "}
+												{member.employee?.departmentRole || "Unknown"}
 											</p>
 											<div
 												className={`inline-block px-2 py-1 rounded-full text-xs font-bold mt-1 ${getScoreColor(
@@ -719,21 +721,21 @@ Report Generated: ${new Date().toLocaleString()}
 												<TableCell>
 													<div>
 														<h4 className="font-semibold text-slate-800">
-															{member.employee.name}
+															{member.employee?.name || "Unknown"}
 														</h4>
 														<p className="text-sm text-slate-600">
-															{member.employee.contact.email}
+															{member.employee?.contact?.email || "No email"}
 														</p>
 													</div>
 												</TableCell>
 												<TableCell className="text-center">
 													<span className="text-sm text-slate-700 capitalize">
-														{member.employee.department}
+														{member.employee?.department || "Unknown"}
 													</span>
 												</TableCell>
 												<TableCell className="text-center">
 													<span className="text-sm text-slate-700 uppercase">
-														{member.employee.departmentRole}
+														{member.employee?.departmentRole || "Unknown"}
 													</span>
 												</TableCell>
 												{showDetailedKpiNames ? (
@@ -827,23 +829,23 @@ Report Generated: ${new Date().toLocaleString()}
 									<div className="space-y-2">
 										<p>
 											<span className="font-medium">Name:</span>{" "}
-											{selectedMember.employee.name}
+											{selectedMember.employee?.name || "Unknown"}
 										</p>
 										<p>
 											<span className="font-medium">Email:</span>{" "}
-											{selectedMember.employee.contact.email}
+											{selectedMember.employee?.contact?.email || "No email"}
 										</p>
 										<p>
 											<span className="font-medium">Department:</span>{" "}
-											{selectedMember.employee.department}
+											{selectedMember.employee?.department || "Unknown"}
 										</p>
 										<p>
 											<span className="font-medium">Role:</span>{" "}
-											{selectedMember.employee.departmentRole}
+											{selectedMember.employee?.departmentRole || "Unknown"}
 										</p>
 										<p>
 											<span className="font-medium">Employee ID:</span>{" "}
-											{selectedMember.employee._id}
+											{selectedMember.employee?._id || "Unknown"}
 										</p>
 									</div>
 								</div>
