@@ -7,6 +7,8 @@ export interface StatisticsFilters {
 	role?: string;
 	month?: number;
 	year?: number;
+	page?: number;
+	limit?: number;
 }
 
 export interface DepartmentStat {
@@ -26,10 +28,30 @@ export interface RoleStat {
 export interface StatisticsData {
 	totalEntries: number;
 	averageScore: number;
+
+	scoreDistribution: {
+		counts: {
+			excellent: number;
+			good: number;
+			average: number;
+			poor: number;
+		};
+		percentages: {
+			excellent: number;
+			good: number;
+			average: number;
+			poor: number;
+		};
+		scale: string;
+		buckets: {
+			excellent: string;
+			good: string;
+			average: string;
+			poor: string;
+		};
+	};
 	maxScore: number;
 	minScore: number;
-	departmentStats: DepartmentStat[];
-	roleStats: RoleStat[];
 }
 
 export interface AvailableFilters {
@@ -84,10 +106,60 @@ export interface RankingEntry {
 export interface StatisticsResponse {
 	success: boolean;
 	message: string;
-	filters: StatisticsFilters;
+	filters: StatisticsFilters & { page: number; limit: number };
+	pagination: {
+		currentPage: number;
+		totalPages: number;
+		totalItems: number;
+		itemsPerPage: number;
+		hasNextPage: boolean;
+		hasPreviousPage: boolean;
+	};
 	statistics: StatisticsData;
-	availableFilters: AvailableFilters;
 	ranking: RankingEntry[];
+	topFivePercent: RankingEntry[];
+	bottomFivePercent: RankingEntry[];
+}
+
+// Available filters API response
+export interface AvailableFiltersResponse {
+	success: boolean;
+	message: string;
+	status: number;
+	filters: Record<string, unknown>;
+	availableFilters: AvailableFilters;
+	summary?: {
+		totalEntries: number;
+		totalDepartments: number;
+		totalRoles: number;
+		totalMonths: number;
+		totalYears: number;
+	};
+}
+
+// All Department Stats API
+export interface AllDepartmentStat {
+	department: string;
+	totalEntries: number;
+	averageScore: number;
+	maxScore: number;
+	minScore: number;
+}
+
+export interface AllDepartmentStatsFilters {
+	month: number;
+	year: number;
+	page?: number;
+	limit?: number;
+}
+
+export interface AllDepartmentStatsResponse {
+	success: boolean;
+	message: string;
+	status: number;
+	filters: { month: number; year: number } & { page?: number; limit?: number };
+	totalDepartments: number;
+	stats: AllDepartmentStat[];
 }
 
 // API function to fetch statistics
@@ -98,14 +170,42 @@ export const getStatistics = async (
 
 	if (filters.department) params.append("department", filters.department);
 	if (filters.role) params.append("role", filters.role);
-	if (filters.month) params.append("month", filters.month.toString());
-	if (filters.year) params.append("year", filters.year.toString());
+	if (typeof filters.month === "number")
+		params.append("month", filters.month.toString());
+	if (typeof filters.year === "number")
+		params.append("year", filters.year.toString());
+	if (typeof filters.page === "number")
+		params.append("page", filters.page.toString());
+	if (typeof filters.limit === "number")
+		params.append("limit", filters.limit.toString());
 
 	const queryString = params.toString();
 	const url = `/v1/entries/statistics${queryString ? `?${queryString}` : ""}`;
 
 	const response = await authApi.get(url);
 	return response.data;
+};
+
+// API function to fetch available filters (independent of statistics)
+export const getAvailableFilters = async (params?: {
+	department?: string;
+}): Promise<AvailableFiltersResponse> => {
+	const qs = new URLSearchParams();
+	if (params?.department) qs.append("department", params.department);
+	const response = await authApi.get(
+		`/v1/entries/available-filters${qs.toString() ? `?${qs.toString()}` : ""}`
+	);
+	return response.data;
+};
+
+// React Query hook for available filters
+export const useAvailableFilters = (department?: string) => {
+	return useQuery({
+		queryKey: ["entries", "available-filters", department || "all"],
+		queryFn: () => getAvailableFilters(department ? { department } : undefined),
+		staleTime: 5 * 60 * 1000,
+		gcTime: 10 * 60 * 1000,
+	});
 };
 
 // React Query hook for statistics
@@ -121,6 +221,7 @@ export const useStatistics = ({
 		queryFn: () => getStatistics(filters || {}),
 		staleTime: 5 * 60 * 1000, // 5 minutes
 		gcTime: 10 * 60 * 1000, // 10 minutes
+		enabled,
 	});
 };
 
@@ -148,6 +249,35 @@ export const useTimeBasedStatistics = (month: number, year: number) => {
 // Hook for combined filters statistics
 export const useFilteredStatistics = (filters: StatisticsFilters) => {
 	return useStatistics({ filters, enabled: true });
+};
+
+// API function: all departments stats
+export const getAllDepartmentStats = async (
+	filters: AllDepartmentStatsFilters
+): Promise<AllDepartmentStatsResponse> => {
+	const params = new URLSearchParams();
+	params.append("month", String(filters.month));
+	params.append("year", String(filters.year));
+	if (typeof filters.page === "number")
+		params.append("page", String(filters.page));
+	if (typeof filters.limit === "number")
+		params.append("limit", String(filters.limit));
+	const url = `/v1/entries/all-department-stats?${params.toString()}`;
+	const response = await authApi.get(url);
+	return response.data;
+};
+
+// Hook: all departments stats
+export const useAllDepartmentStats = (
+	filters: AllDepartmentStatsFilters | null
+) => {
+	return useQuery({
+		queryKey: ["all-department-stats", filters],
+		queryFn: () => getAllDepartmentStats(filters as AllDepartmentStatsFilters),
+		enabled: Boolean(filters && filters.month && filters.year),
+		staleTime: 5 * 60 * 1000,
+		gcTime: 10 * 60 * 1000,
+	});
 };
 
 // Utility functions for statistics
