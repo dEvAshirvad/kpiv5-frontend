@@ -480,18 +480,21 @@ export default function TemplateManagementPage() {
 	const removeKpi = (index: number) => {
 		if (kpiCount > 1) {
 			setKpiCount((prev) => prev - 1);
-			const newSubKpiCounts = { ...subKpiCounts };
-			const newKpiTypes = { ...kpiTypes };
-			delete newSubKpiCounts[index];
-			delete newKpiTypes[index];
-			// Reindex the remaining KPIs
+			// Get all existing indices except the one being removed
+			const remainingIndices = Array.from(
+				{ length: kpiCount },
+				(_, i) => i
+			).filter((i) => i !== index);
+
+			// Reindex the remaining KPIs sequentially
 			const reindexedSubKpis: { [key: number]: number } = {};
 			const reindexedTypes: { [key: number]: string } = {};
-			Object.keys(newSubKpiCounts).forEach((key, newIndex) => {
-				const oldIndex = parseInt(key);
-				reindexedSubKpis[newIndex] = newSubKpiCounts[oldIndex];
-				reindexedTypes[newIndex] = newKpiTypes[oldIndex];
+
+			remainingIndices.forEach((oldIndex, newIndex) => {
+				reindexedSubKpis[newIndex] = subKpiCounts[oldIndex] || 2;
+				reindexedTypes[newIndex] = kpiTypes[oldIndex] || "subkpis";
 			});
+
 			setSubKpiCounts(reindexedSubKpis);
 			setKpiTypes(reindexedTypes);
 		}
@@ -579,18 +582,21 @@ export default function TemplateManagementPage() {
 	const removeEditKpi = (index: number) => {
 		if (editKpiCount > 1) {
 			setEditKpiCount((prev) => prev - 1);
-			const newSubKpiCounts = { ...editSubKpiCounts };
-			const newKpiTypes = { ...editKpiTypes };
-			delete newSubKpiCounts[index];
-			delete newKpiTypes[index];
-			// Reindex the remaining KPIs
+			// Get all existing indices except the one being removed
+			const remainingIndices = Array.from(
+				{ length: editKpiCount },
+				(_, i) => i
+			).filter((i) => i !== index);
+
+			// Reindex the remaining KPIs sequentially
 			const reindexedSubKpis: { [key: number]: number } = {};
 			const reindexedTypes: { [key: number]: string } = {};
-			Object.keys(newSubKpiCounts).forEach((key, newIndex) => {
-				const oldIndex = parseInt(key);
-				reindexedSubKpis[newIndex] = newSubKpiCounts[oldIndex];
-				reindexedTypes[newIndex] = newKpiTypes[oldIndex];
+
+			remainingIndices.forEach((oldIndex, newIndex) => {
+				reindexedSubKpis[newIndex] = editSubKpiCounts[oldIndex] || 2;
+				reindexedTypes[newIndex] = editKpiTypes[oldIndex] || "subkpis";
 			});
+
 			setEditSubKpiCounts(reindexedSubKpis);
 			setEditKpiTypes(reindexedTypes);
 		}
