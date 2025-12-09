@@ -113,12 +113,14 @@ export default function TemplateManagementPage() {
 	const [roleFilter, setRoleFilter] = React.useState("All");
 	const [debouncedRoleFilter, setDebouncedRoleFilter] = React.useState("All");
 	const [kpiCount, setKpiCount] = React.useState(1);
+	const [kpiKeys, setKpiKeys] = React.useState<number[]>([0]);
 	const [subKpiCounts, setSubKpiCounts] = React.useState<{
 		[key: number]: number;
 	}>({ 0: 2 });
 
 	// State for edit template KPIs
 	const [editKpiCount, setEditKpiCount] = React.useState(1);
+	const [editKpiKeys, setEditKpiKeys] = React.useState<number[]>([0]);
 	const [editSubKpiCounts, setEditSubKpiCounts] = React.useState<{
 		[key: number]: number;
 	}>({ 0: 2 });
@@ -171,21 +173,21 @@ export default function TemplateManagementPage() {
 		try {
 			const formData = new FormData(e.target as HTMLFormElement);
 
-			// Parse multiple KPIs from form data
+			// Parse multiple KPIs from form data using keys
 			const templateArray: KpiTemplate[] = [];
 
-			for (let i = 0; i < kpiCount; i++) {
-				const kpiType = formData.get(`kpi_${i}_type`) as string;
+			for (const kpiKey of kpiKeys) {
+				const kpiType = formData.get(`kpi_${kpiKey}_type`) as string;
 				const subKpis: SubKpi[] = [];
 
 				if (kpiType === "subkpis") {
-					const subKpiCount = subKpiCounts[i] || 2;
+					const subKpiCount = subKpiCounts[kpiKey] || 2;
 					for (let j = 0; j < subKpiCount; j++) {
 						const subKpiName = formData.get(
-							`kpi_${i}_subkpi_${j}_name`
+							`kpi_${kpiKey}_subkpi_${j}_name`
 						) as string;
 						const subKpiKey = formData.get(
-							`kpi_${i}_subkpi_${j}_key`
+							`kpi_${kpiKey}_subkpi_${j}_key`
 						) as string;
 
 						if (subKpiName && subKpiKey) {
@@ -199,10 +201,10 @@ export default function TemplateManagementPage() {
 				}
 
 				const kpi: KpiTemplate = {
-					name: formData.get(`kpi_${i}_name`) as string,
-					description: formData.get(`kpi_${i}_description`) as string,
+					name: formData.get(`kpi_${kpiKey}_name`) as string,
+					description: formData.get(`kpi_${kpiKey}_description`) as string,
 					maxMarks:
-						parseInt(formData.get(`kpi_${i}_maxMarks`) as string) || 100,
+						parseInt(formData.get(`kpi_${kpiKey}_maxMarks`) as string) || 100,
 					kpiType: "percentage",
 					kpiUnit: "%",
 					isDynamic: false,
@@ -281,21 +283,21 @@ export default function TemplateManagementPage() {
 		try {
 			const formData = new FormData(e.target as HTMLFormElement);
 
-			// Parse multiple KPIs from form data for editing
+			// Parse multiple KPIs from form data for editing using keys
 			const templateArray: KpiTemplate[] = [];
 
-			for (let i = 0; i < editKpiCount; i++) {
-				const kpiType = formData.get(`edit_kpi_${i}_type`) as string;
+			for (const kpiKey of editKpiKeys) {
+				const kpiType = formData.get(`edit_kpi_${kpiKey}_type`) as string;
 				const subKpis: SubKpi[] = [];
 
 				if (kpiType === "subkpis") {
-					const subKpiCount = editSubKpiCounts[i] || 2;
+					const subKpiCount = editSubKpiCounts[kpiKey] || 2;
 					for (let j = 0; j < subKpiCount; j++) {
 						const subKpiName = formData.get(
-							`edit_kpi_${i}_subkpi_${j}_name`
+							`edit_kpi_${kpiKey}_subkpi_${j}_name`
 						) as string;
 						const subKpiKey = formData.get(
-							`edit_kpi_${i}_subkpi_${j}_key`
+							`edit_kpi_${kpiKey}_subkpi_${j}_key`
 						) as string;
 
 						if (subKpiName && subKpiKey) {
@@ -309,10 +311,11 @@ export default function TemplateManagementPage() {
 				}
 
 				const kpi: KpiTemplate = {
-					name: formData.get(`edit_kpi_${i}_name`) as string,
-					description: formData.get(`edit_kpi_${i}_description`) as string,
+					name: formData.get(`edit_kpi_${kpiKey}_name`) as string,
+					description: formData.get(`edit_kpi_${kpiKey}_description`) as string,
 					maxMarks:
-						parseInt(formData.get(`edit_kpi_${i}_maxMarks`) as string) || 100,
+						parseInt(formData.get(`edit_kpi_${kpiKey}_maxMarks`) as string) ||
+						100,
 					kpiType: "percentage",
 					kpiUnit: "%",
 					isDynamic: false,
@@ -471,70 +474,67 @@ export default function TemplateManagementPage() {
 
 	// Helper functions for managing KPIs and sub-KPIs
 	const addKpi = () => {
-		const newKpiIndex = kpiCount;
+		const newKey = Math.max(...kpiKeys, -1) + 1;
 		setKpiCount((prev) => prev + 1);
-		setSubKpiCounts((prev) => ({ ...prev, [newKpiIndex]: 2 }));
-		setKpiTypes((prev) => ({ ...prev, [newKpiIndex]: "subkpis" }));
+		setKpiKeys((prev) => [...prev, newKey]);
+		setSubKpiCounts((prev) => ({ ...prev, [newKey]: 2 }));
+		setKpiTypes((prev) => ({ ...prev, [newKey]: "subkpis" }));
 	};
 
-	const removeKpi = (index: number) => {
+	const removeKpi = (keyToRemove: number) => {
 		if (kpiCount > 1) {
 			setKpiCount((prev) => prev - 1);
-			// Get all existing indices except the one being removed
-			const remainingIndices = Array.from(
-				{ length: kpiCount },
-				(_, i) => i
-			).filter((i) => i !== index);
-
-			// Reindex the remaining KPIs sequentially
-			const reindexedSubKpis: { [key: number]: number } = {};
-			const reindexedTypes: { [key: number]: string } = {};
-
-			remainingIndices.forEach((oldIndex, newIndex) => {
-				reindexedSubKpis[newIndex] = subKpiCounts[oldIndex] || 2;
-				reindexedTypes[newIndex] = kpiTypes[oldIndex] || "subkpis";
+			setKpiKeys((prev) => prev.filter((key) => key !== keyToRemove));
+			// Remove the key from state objects
+			setSubKpiCounts((prev) => {
+				const newState = { ...prev };
+				delete newState[keyToRemove];
+				return newState;
 			});
-
-			setSubKpiCounts(reindexedSubKpis);
-			setKpiTypes(reindexedTypes);
+			setKpiTypes((prev) => {
+				const newState = { ...prev };
+				delete newState[keyToRemove];
+				return newState;
+			});
 		}
 	};
 
-	const addSubKpi = (kpiIndex: number) => {
+	const addSubKpi = (kpiKey: number) => {
 		setSubKpiCounts((prev) => ({
 			...prev,
-			[kpiIndex]: (prev[kpiIndex] || 2) + 1,
+			[kpiKey]: (prev[kpiKey] || 2) + 1,
 		}));
 	};
 
-	const removeSubKpi = (kpiIndex: number, subKpiIndex: number) => {
-		const currentCount = subKpiCounts[kpiIndex] || 2;
+	const removeSubKpi = (kpiKey: number, subKpiIndex: number) => {
+		const currentCount = subKpiCounts[kpiKey] || 2;
 		if (currentCount > 1) {
 			setSubKpiCounts((prev) => ({
 				...prev,
-				[kpiIndex]: currentCount - 1,
+				[kpiKey]: currentCount - 1,
 			}));
 		}
 	};
 
 	// Helper functions for managing edit KPIs and sub-KPIs
 	const addEditKpi = () => {
-		const newKpiIndex = editKpiCount;
+		const newKey = Math.max(...editKpiKeys, -1) + 1;
 		setEditKpiCount((prev) => prev + 1);
-		setEditSubKpiCounts((prev) => ({ ...prev, [newKpiIndex]: 2 }));
-		setEditKpiTypes((prev) => ({ ...prev, [newKpiIndex]: "subkpis" }));
+		setEditKpiKeys((prev) => [...prev, newKey]);
+		setEditSubKpiCounts((prev) => ({ ...prev, [newKey]: 2 }));
+		setEditKpiTypes((prev) => ({ ...prev, [newKey]: "subkpis" }));
 	};
 
 	// Function to toggle sub-KPI visibility based on KPI type
 	const toggleSubKpiVisibility = (
-		kpiIndex: number,
+		kpiKey: number,
 		type: string,
 		isEdit: boolean = false
 	) => {
 		if (isEdit) {
-			setEditKpiTypes((prev) => ({ ...prev, [kpiIndex]: type }));
+			setEditKpiTypes((prev) => ({ ...prev, [kpiKey]: type }));
 		} else {
-			setKpiTypes((prev) => ({ ...prev, [kpiIndex]: type }));
+			setKpiTypes((prev) => ({ ...prev, [kpiKey]: type }));
 		}
 	};
 
@@ -542,30 +542,32 @@ export default function TemplateManagementPage() {
 	React.useEffect(() => {
 		if (showEditTemplate && selectedTemplate) {
 			const newEditKpiTypes: { [key: number]: string } = {};
-			selectedTemplate.template?.forEach((kpi: KpiTemplate, index: number) => {
-				const hasSubKpis = kpi.subKpis && kpi.subKpis.length > 0;
-				newEditKpiTypes[index] = hasSubKpis ? "subkpis" : "direct";
+			editKpiKeys.forEach((key, index) => {
+				const kpi = selectedTemplate.template?.[index];
+				const hasSubKpis = kpi?.subKpis && kpi.subKpis.length > 0;
+				newEditKpiTypes[key] = hasSubKpis ? "subkpis" : "direct";
 			});
 			setEditKpiTypes(newEditKpiTypes);
 		}
-	}, [showEditTemplate, selectedTemplate]);
+	}, [showEditTemplate, selectedTemplate, editKpiKeys]);
 
 	// Initialize KPI types when create modal opens
 	React.useEffect(() => {
 		if (showCreateTemplate) {
 			// Set default type for new KPIs
 			const newKpiTypes: { [key: number]: string } = {};
-			for (let i = 0; i < kpiCount; i++) {
-				newKpiTypes[i] = "subkpis";
-			}
+			kpiKeys.forEach((key) => {
+				newKpiTypes[key] = "subkpis";
+			});
 			setKpiTypes(newKpiTypes);
 		}
-	}, [showCreateTemplate, kpiCount]);
+	}, [showCreateTemplate, kpiKeys]);
 
 	// Reset state when modals are closed
 	React.useEffect(() => {
 		if (!showCreateTemplate) {
 			setKpiCount(1);
+			setKpiKeys([0]);
 			setSubKpiCounts({ 0: 2 });
 			setKpiTypes({ 0: "subkpis" });
 		}
@@ -574,47 +576,43 @@ export default function TemplateManagementPage() {
 	React.useEffect(() => {
 		if (!showEditTemplate) {
 			setEditKpiCount(1);
+			setEditKpiKeys([0]);
 			setEditSubKpiCounts({ 0: 2 });
 			setEditKpiTypes({ 0: "subkpis" });
 		}
 	}, [showEditTemplate]);
 
-	const removeEditKpi = (index: number) => {
+	const removeEditKpi = (keyToRemove: number) => {
 		if (editKpiCount > 1) {
 			setEditKpiCount((prev) => prev - 1);
-			// Get all existing indices except the one being removed
-			const remainingIndices = Array.from(
-				{ length: editKpiCount },
-				(_, i) => i
-			).filter((i) => i !== index);
-
-			// Reindex the remaining KPIs sequentially
-			const reindexedSubKpis: { [key: number]: number } = {};
-			const reindexedTypes: { [key: number]: string } = {};
-
-			remainingIndices.forEach((oldIndex, newIndex) => {
-				reindexedSubKpis[newIndex] = editSubKpiCounts[oldIndex] || 2;
-				reindexedTypes[newIndex] = editKpiTypes[oldIndex] || "subkpis";
+			setEditKpiKeys((prev) => prev.filter((key) => key !== keyToRemove));
+			// Remove the key from state objects
+			setEditSubKpiCounts((prev) => {
+				const newState = { ...prev };
+				delete newState[keyToRemove];
+				return newState;
 			});
-
-			setEditSubKpiCounts(reindexedSubKpis);
-			setEditKpiTypes(reindexedTypes);
+			setEditKpiTypes((prev) => {
+				const newState = { ...prev };
+				delete newState[keyToRemove];
+				return newState;
+			});
 		}
 	};
 
-	const addEditSubKpi = (kpiIndex: number) => {
+	const addEditSubKpi = (kpiKey: number) => {
 		setEditSubKpiCounts((prev) => ({
 			...prev,
-			[kpiIndex]: (prev[kpiIndex] || 2) + 1,
+			[kpiKey]: (prev[kpiKey] || 2) + 1,
 		}));
 	};
 
-	const removeEditSubKpi = (kpiIndex: number, subKpiIndex: number) => {
-		const currentCount = editSubKpiCounts[kpiIndex] || 2;
+	const removeEditSubKpi = (kpiKey: number, subKpiIndex: number) => {
+		const currentCount = editSubKpiCounts[kpiKey] || 2;
 		if (currentCount > 1) {
 			setEditSubKpiCounts((prev) => ({
 				...prev,
-				[kpiIndex]: currentCount - 1,
+				[kpiKey]: currentCount - 1,
 			}));
 		}
 	};
@@ -782,9 +780,9 @@ export default function TemplateManagementPage() {
 											</Button>
 										</div>
 
-										{Array.from({ length: kpiCount }, (_, kpiIndex) => (
+										{kpiKeys.map((kpiKey, kpiIndex) => (
 											<div
-												key={kpiIndex}
+												key={kpiKey}
 												className="border rounded-lg p-4 space-y-4">
 												<div className="flex items-center justify-between">
 													<h4 className="font-medium text-slate-700">
@@ -795,7 +793,7 @@ export default function TemplateManagementPage() {
 															type="button"
 															variant="outline"
 															size="sm"
-															onClick={() => removeKpi(kpiIndex)}
+															onClick={() => removeKpi(kpiKey)}
 															className="text-red-600 hover:text-red-700">
 															<Trash2 className="w-4 h-4" />
 														</Button>
@@ -804,21 +802,21 @@ export default function TemplateManagementPage() {
 
 												<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 													<div className="space-y-2">
-														<Label htmlFor={`kpi_${kpiIndex}_name`}>
+														<Label htmlFor={`kpi_${kpiKey}_name`}>
 															KPI Name
 														</Label>
 														<Input
-															name={`kpi_${kpiIndex}_name`}
+															name={`kpi_${kpiKey}_name`}
 															placeholder="Enter KPI name"
 															required
 														/>
 													</div>
 													<div className="space-y-2">
-														<Label htmlFor={`kpi_${kpiIndex}_maxMarks`}>
+														<Label htmlFor={`kpi_${kpiKey}_maxMarks`}>
 															Max Marks
 														</Label>
 														<Input
-															name={`kpi_${kpiIndex}_maxMarks`}
+															name={`kpi_${kpiKey}_maxMarks`}
 															type="number"
 															defaultValue="100"
 															required
@@ -826,11 +824,11 @@ export default function TemplateManagementPage() {
 													</div>
 												</div>
 												<div className="space-y-2">
-													<Label htmlFor={`kpi_${kpiIndex}_description`}>
+													<Label htmlFor={`kpi_${kpiKey}_description`}>
 														KPI Description
 													</Label>
 													<Input
-														name={`kpi_${kpiIndex}_description`}
+														name={`kpi_${kpiKey}_description`}
 														placeholder="Enter KPI description"
 														required
 													/>
@@ -838,14 +836,14 @@ export default function TemplateManagementPage() {
 
 												{/* KPI Type Selection */}
 												<div className="space-y-2 hidden">
-													<Label htmlFor={`kpi_${kpiIndex}_type`}>
+													<Label htmlFor={`kpi_${kpiKey}_type`}>
 														KPI Input Type
 													</Label>
 													<Select
-														name={`kpi_${kpiIndex}_type`}
-														value={kpiTypes[kpiIndex] || "direct"}
+														name={`kpi_${kpiKey}_type`}
+														value={kpiTypes[kpiKey] || "direct"}
 														onValueChange={(value) =>
-															toggleSubKpiVisibility(kpiIndex, value, false)
+															toggleSubKpiVisibility(kpiKey, value, false)
 														}>
 														<SelectTrigger className="w-full">
 															<SelectValue />
@@ -1193,7 +1191,15 @@ export default function TemplateManagementPage() {
 															className="h-8 w-8 p-0"
 															onClick={() => {
 																setSelectedTemplate(template);
-																setEditKpiCount(template.template?.length || 1);
+																const templateLength =
+																	template.template?.length || 1;
+																setEditKpiCount(templateLength);
+																// Initialize keys for existing KPIs
+																const initialKeys = Array.from(
+																	{ length: templateLength },
+																	(_, i) => i
+																);
+																setEditKpiKeys(initialKeys);
 																// Initialize subKpi counts for existing KPIs
 																const initialSubKpiCounts: {
 																	[key: number]: number;
@@ -1302,11 +1308,11 @@ export default function TemplateManagementPage() {
 										Add KPI
 									</Button>
 								</div>
-								{Array.from({ length: editKpiCount }, (_, kpiIndex) => {
+								{editKpiKeys.map((kpiKey, kpiIndex) => {
 									const existingKpi = selectedTemplate?.template?.[kpiIndex];
 									return (
 										<div
-											key={kpiIndex}
+											key={kpiKey}
 											className="border rounded-lg p-4 space-y-4">
 											<div className="flex items-center justify-between">
 												<h4 className="font-medium text-slate-700">
@@ -1317,7 +1323,7 @@ export default function TemplateManagementPage() {
 														type="button"
 														variant="outline"
 														size="sm"
-														onClick={() => removeEditKpi(kpiIndex)}
+														onClick={() => removeEditKpi(kpiKey)}
 														className="text-red-600 hover:text-red-700">
 														<Trash2 className="w-4 h-4" />
 													</Button>
@@ -1326,22 +1332,22 @@ export default function TemplateManagementPage() {
 
 											<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 												<div className="space-y-2">
-													<Label htmlFor={`edit_kpi_${kpiIndex}_name`}>
+													<Label htmlFor={`edit_kpi_${kpiKey}_name`}>
 														KPI Name
 													</Label>
 													<Input
-														name={`edit_kpi_${kpiIndex}_name`}
+														name={`edit_kpi_${kpiKey}_name`}
 														placeholder="Enter KPI name"
 														defaultValue={existingKpi?.name || ""}
 														required
 													/>
 												</div>
 												<div className="space-y-2">
-													<Label htmlFor={`edit_kpi_${kpiIndex}_maxMarks`}>
+													<Label htmlFor={`edit_kpi_${kpiKey}_maxMarks`}>
 														Max Marks
 													</Label>
 													<Input
-														name={`edit_kpi_${kpiIndex}_maxMarks`}
+														name={`edit_kpi_${kpiKey}_maxMarks`}
 														type="number"
 														defaultValue={existingKpi?.maxMarks || 100}
 														required
@@ -1349,11 +1355,11 @@ export default function TemplateManagementPage() {
 												</div>
 											</div>
 											<div className="space-y-2">
-												<Label htmlFor={`edit_kpi_${kpiIndex}_description`}>
+												<Label htmlFor={`edit_kpi_${kpiKey}_description`}>
 													KPI Description
 												</Label>
 												<Input
-													name={`edit_kpi_${kpiIndex}_description`}
+													name={`edit_kpi_${kpiKey}_description`}
 													placeholder="Enter KPI description"
 													defaultValue={existingKpi?.description || ""}
 													required
